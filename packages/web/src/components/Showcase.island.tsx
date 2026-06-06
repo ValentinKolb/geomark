@@ -3,7 +3,7 @@ import { hotkeys, mutation, timed } from "@valentinkolb/stdlib/solid";
 import { timing } from "@valentinkolb/stdlib";
 
 /**
- * Live API showcase — the /api/v1/search endpoint.
+ * Live API showcase — the /v1/search endpoint.
  *
  * Search is the main feature: fuzzy (trigram), unaccent, BM25-ranked,
  * multilingual via aliases. The other endpoints (reverse, code, postal)
@@ -80,7 +80,7 @@ export default function Showcase() {
   const search = mutation.create<SearchResp, string>({
     mutation: (text, { abortSignal }) =>
       timing.withMinLoadTime(async () => {
-        const path = `/api/v1/search?q=${encodeURIComponent(text)}&limit=6`;
+        const path = `/v1/search?q=${encodeURIComponent(text)}&limit=6`;
         const start = performance.now();
         const r = await fetch(path, { signal: abortSignal });
         const ms = Math.round(performance.now() - start);

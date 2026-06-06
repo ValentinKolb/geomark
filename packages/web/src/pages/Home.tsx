@@ -8,7 +8,7 @@ import LiveWorldMap from "../components/LiveWorldMap.island";
  *
  * Sections:
  *   1. Hero            — what it is + two paths (hosted / self-host)
- *   2. Live showcase   — /api/v1/search, hits the live API
+ *   2. Live showcase   — /v1/search, hits the live API
  *   3. Endpoints       — every documented route, one line each
  *   4. Data            — sources, licenses, live counts, download link
  *   5. Run it          — hosted vs self-host, side by side
@@ -115,17 +115,17 @@ const fmtNum = (n: number) => n.toLocaleString("en-US");
 // ─── endpoint catalog ─────────────────────────────────────────────────────
 
 const ENDPOINTS: { method: "GET" | "POST"; path: string; desc: string }[] = [
-  { method: "GET",  path: "/api/v1/search",                desc: "Forward search by free text. BM25 ranking, trigram fuzzy, unaccent." },
-  { method: "GET",  path: "/api/v1/reverse",               desc: "Coordinates → places, ordered by distance, bounded by radius." },
-  { method: "POST", path: "/api/v1/batch",                 desc: "Up to 100 search or reverse queries in one request." },
-  { method: "GET",  path: "/api/v1/place/{gid}",           desc: "Place by ID, with all aliases (alternate names, IATA/ICAO, links)." },
-  { method: "GET",  path: "/api/v1/code/{kind}/{value}",   desc: "Lookup by alternate code: IATA, ICAO, Wikidata, postal variant." },
-  { method: "GET",  path: "/api/v1/postal",                desc: "Postal codes by code, place name, or country." },
-  { method: "GET",  path: "/api/v1/countries",             desc: "Country list with metadata and place counts." },
-  { method: "GET",  path: "/api/v1/countries/{code}",      desc: "Country metadata for a 2-letter ISO 3166-1 alpha-2 code." },
-  { method: "GET",  path: "/api/v1/coverage",              desc: "Per-country deepest available layer (address / place_only / none)." },
-  { method: "GET",  path: "/api/v1/attribution",           desc: "Data sources, licenses, attribution strings — required reading before redistributing." },
-  { method: "GET",  path: "/api/v1/random",                desc: "Up to 5000 random places. Filter by country or min_population — useful for visualisations." },
+  { method: "GET",  path: "/v1/search",                desc: "Forward search by free text. BM25 ranking, trigram fuzzy, unaccent." },
+  { method: "GET",  path: "/v1/reverse",               desc: "Coordinates → places, ordered by distance, bounded by radius." },
+  { method: "POST", path: "/v1/batch",                 desc: "Up to 100 search or reverse queries in one request." },
+  { method: "GET",  path: "/v1/place/{gid}",           desc: "Place by ID, with all aliases (alternate names, IATA/ICAO, links)." },
+  { method: "GET",  path: "/v1/code/{kind}/{value}",   desc: "Lookup by alternate code: IATA, ICAO, Wikidata, postal variant." },
+  { method: "GET",  path: "/v1/postal",                desc: "Postal codes by code, place name, or country." },
+  { method: "GET",  path: "/v1/countries",             desc: "Country list with metadata and place counts." },
+  { method: "GET",  path: "/v1/countries/{code}",      desc: "Country metadata for a 2-letter ISO 3166-1 alpha-2 code." },
+  { method: "GET",  path: "/v1/coverage",              desc: "Per-country deepest available layer (address / place_only / none)." },
+  { method: "GET",  path: "/v1/attribution",           desc: "Data sources, licenses, attribution strings — required reading before redistributing." },
+  { method: "GET",  path: "/v1/random",                desc: "Up to 5000 random places. Filter by country or min_population — useful for visualisations." },
 ];
 
 // ─── page ─────────────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ export default ssr(async (c) => {
 
         {/* ─── ENDPOINTS ────────────────────────────────────────────────── */}
         <section class="mb-24 md:mb-32">
-          <SectionLabel label="Endpoints" coord="11 routes · prefix /api/v1" icon="ti-route" />
+          <SectionLabel label="Endpoints" coord="11 routes · prefix /v1" icon="ti-route" />
 
           <p class="text-[var(--color-bone-dim)] max-w-2xl mb-8 md:mb-10">
             Every route returns JSON. Errors share the shape{" "}
@@ -304,7 +304,7 @@ export default ssr(async (c) => {
               <p>
                 Attribution stays with the data. Anything you republish
                 must keep the credit lines from{" "}
-                <code class="code-inline">/api/v1/attribution</code> intact.
+                <code class="code-inline">/v1/attribution</code> intact.
               </p>
             </div>
 
@@ -354,7 +354,7 @@ export default ssr(async (c) => {
               </span>
               <span class="coord flex items-center gap-1.5 text-[var(--color-bone-fade)]">
                 <span class="beacon-dot" />
-                GET /api/v1/random?limit=2000 · every 5s
+                GET /v1/random?limit=2000 · every 5s
               </span>
             </div>
             <LiveWorldMap />
@@ -397,7 +397,7 @@ export default ssr(async (c) => {
               </p>
 
               <pre class="code-block">
-<span class="text-[var(--color-bone-fade)]">$</span> <span class="text-[var(--color-marker)]">curl</span> <span class="text-[var(--color-bone)]">https://geomark.dev/api/v1/search</span> \{"\n"}
+<span class="text-[var(--color-bone-fade)]">$</span> <span class="text-[var(--color-marker)]">curl</span> <span class="text-[var(--color-bone)]">https://geomark.dev/v1/search</span> \{"\n"}
 {"  "}-G --data-urlencode <span class="coord-tide">'q=berlin'</span>
               </pre>
 

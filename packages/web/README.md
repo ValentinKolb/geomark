@@ -17,7 +17,7 @@ bun run typecheck  # tsc --noEmit
 | Variable | Default | Description |
 |---|---|---|
 | `PORT`    | `3000`                  | HTTP port. |
-| `API_URL` | `http://localhost:4000` | Upstream API used by SSR (`/ready`, `/api/v1/random`) and proxied through `/api/*`. In production behind Traefik, `/api/*` typically routes directly to the API container, bypassing this proxy. |
+| `API_URL` | `http://localhost:4000` | Upstream API used by SSR (`/ready`, `/v1/random`) and proxied through `/api/*`. In production behind Traefik, `/api/*` typically routes directly to the API container, bypassing this proxy. |
 
 ## Routes
 
@@ -32,9 +32,9 @@ bun run typecheck  # tsc --noEmit
 ## Pages
 
 - **Hero** — display headline, two-path messaging, CTAs
-- **Live showcase** — Solid island that hits `/api/v1/search` on input. Uses `mutation.create` and `timed.debounce` from `@valentinkolb/stdlib/solid`, plus `timing.withMinLoadTime` from `@valentinkolb/stdlib` for the loader-bar floor
-- **Endpoints** — list of all 10 `/api/v1/*` routes
-- **Data** — sources, licenses, live state pulled from `/ready` at SSR time, world map sampling via `/api/v1/random` every 5s
+- **Live showcase** — Solid island that hits `/v1/search` on input. Uses `mutation.create` and `timed.debounce` from `@valentinkolb/stdlib/solid`, plus `timing.withMinLoadTime` from `@valentinkolb/stdlib` for the loader-bar floor
+- **Endpoints** — list of all 10 `/v1/*` routes
+- **Data** — sources, licenses, live state pulled from `/ready` at SSR time, world map sampling via `/v1/random` every 5s
 - **Run it** — hosted vs self-host side by side
 - **Tech** — stack facts
 

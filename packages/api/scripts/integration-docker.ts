@@ -266,10 +266,10 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/search?q=berlin returns Berlin (real GeoNames row)",
+    name: "/v1/search?q=berlin returns Berlin (real GeoNames row)",
     run: async () => {
       const r = await json<{ features: { name: string; country_code: string; layer: string }[] }>(
-        "/api/v1/search?q=berlin&limit=5",
+        "/v1/search?q=berlin&limit=5",
       );
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.features.length > 0, "no features");
@@ -283,13 +283,13 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     // GeoNames cities*.zip uses the international name (Munich, not München);
     // local-language names live in alternateNames which we don't load in v0.1.
     // So we test typo-tolerance against an English name instead.
-    name: "/api/v1/search?q=munic (typo) → Munich (trgm fuzzy)",
+    name: "/v1/search?q=munic (typo) → Munich (trgm fuzzy)",
     run: async () => {
       // Truncated typo "munic" (missing trailing h). Cities15000 ships
       // the English name "Munich" — local "München" lives in
       // alternateNames which we don't load.
       const r = await json<{ features: { name: string; score: number }[] }>(
-        "/api/v1/search?q=munic&limit=5&country=DE",
+        "/v1/search?q=munic&limit=5&country=DE",
       );
       expect(r.status === 200, `status=${r.status}`);
       expect(
@@ -299,10 +299,10 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/search?q=Müllerstraße → synthetic OA address hit",
+    name: "/v1/search?q=Müllerstraße → synthetic OA address hit",
     run: async () => {
       const r = await json<{ features: { name: string; layer: string; country_code: string }[] }>(
-        "/api/v1/search?q=Müllerstraße&layers=address&limit=3",
+        "/v1/search?q=Müllerstraße&layers=address&limit=3",
       );
       expect(r.status === 200, `status=${r.status}`);
       const addr = r.body.features.find(
@@ -312,10 +312,10 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/reverse near Berlin Mitte (52.52, 13.41)",
+    name: "/v1/reverse near Berlin Mitte (52.52, 13.41)",
     run: async () => {
       const r = await json<{ features: { distance_km: number; layer: string }[] }>(
-        "/api/v1/reverse?lat=52.52&lng=13.41&radius=5&limit=5",
+        "/v1/reverse?lat=52.52&lng=13.41&radius=5&limit=5",
       );
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.features.length > 0, "no features");
@@ -326,10 +326,10 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/postal?code=10115 → Berlin Mitte",
+    name: "/v1/postal?code=10115 → Berlin Mitte",
     run: async () => {
       const r = await json<{ postal_codes: { place_name: string }[] }>(
-        "/api/v1/postal?code=10115",
+        "/v1/postal?code=10115",
       );
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.postal_codes.length > 0, "no postal hits");
@@ -341,10 +341,10 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/countries → list with DE + US",
+    name: "/v1/countries → list with DE + US",
     run: async () => {
       const r = await json<{ countries: { code: string; name: string }[]; total: number }>(
-        "/api/v1/countries",
+        "/v1/countries",
       );
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.total > 200, `total=${r.body.total}`);
@@ -355,28 +355,28 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/countries/de → Germany",
+    name: "/v1/countries/de → Germany",
     run: async () => {
-      const r = await json<{ name: string; languages: string[] }>("/api/v1/countries/de");
+      const r = await json<{ name: string; languages: string[] }>("/v1/countries/de");
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.name === "Germany", `name=${r.body.name}`);
       expect(r.body.languages.includes("de"), `langs=${JSON.stringify(r.body.languages)}`);
     },
   },
   {
-    name: "/api/v1/coverage → DE/US = address",
+    name: "/v1/coverage → DE/US = address",
     run: async () => {
-      const r = await json<{ countries: Record<string, string> }>("/api/v1/coverage");
+      const r = await json<{ countries: Record<string, string> }>("/v1/coverage");
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.countries["DE"] === "address", `DE=${r.body.countries["DE"]}`);
       expect(r.body.countries["US"] === "address", `US=${r.body.countries["US"]}`);
     },
   },
   {
-    name: "/api/v1/batch → mixed search + reverse",
+    name: "/v1/batch → mixed search + reverse",
     run: async () => {
       const r = await json<{ results: { features: { name: string }[] }[] }>(
-        "/api/v1/batch",
+        "/v1/batch",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -397,18 +397,18 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/openapi.json lists all 11 paths with 401/429/500",
+    name: "/v1/openapi.json lists all 11 paths with 401/429/500",
     run: async () => {
       const r = await json<{
         paths: Record<string, Record<string, { responses: Record<string, unknown> }>>;
-      }>("/api/v1/openapi.json");
+      }>("/v1/openapi.json");
       expect(r.status === 200, `status=${r.status}`);
       const paths = [
-        "/api/v1/search", "/api/v1/reverse", "/api/v1/batch",
-        "/api/v1/place/{gid}", "/api/v1/code/{kind}/{value}",
-        "/api/v1/postal",
-        "/api/v1/countries", "/api/v1/countries/{code}",
-        "/api/v1/coverage", "/api/v1/attribution", "/api/v1/random",
+        "/v1/search", "/v1/reverse", "/v1/batch",
+        "/v1/place/{gid}", "/v1/code/{kind}/{value}",
+        "/v1/postal",
+        "/v1/countries", "/v1/countries/{code}",
+        "/v1/coverage", "/v1/attribution", "/v1/random",
       ];
       for (const p of paths) {
         expect(p in r.body.paths, `missing path: ${p}`);
@@ -419,21 +419,21 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/docs serves Scalar HTML",
+    name: "/v1/docs serves Scalar HTML",
     run: async () => {
-      const r = await fetch(`${baseUrl}/api/v1/docs`);
+      const r = await fetch(`${baseUrl}/v1/docs`);
       expect(r.status === 200, `status=${r.status}`);
       const html = await r.text();
-      expect(html.toLowerCase().includes("scalar"), "no scalar in /api/v1/docs html");
+      expect(html.toLowerCase().includes("scalar"), "no scalar in /v1/docs html");
     },
   },
   // ─── aliases checks (require GEONAMES_ALIASES_URL ingest) ──────────────────
   {
-    name: "/api/v1/search?q=München → Munich (matched_alias.lang=de)",
+    name: "/v1/search?q=München → Munich (matched_alias.lang=de)",
     run: async () => {
       const r = await json<{
         features: { name: string; gid: string; matched_alias?: { lang: string | null; value: string } }[];
-      }>("/api/v1/search?q=M%C3%BCnchen&country=DE&limit=5");
+      }>("/v1/search?q=M%C3%BCnchen&country=DE&limit=5");
       expect(r.status === 200, `status=${r.status}`);
       const munich = r.body.features.find((f) => f.gid === "geonames:2867714");
       expect(munich !== undefined, `Munich not in: ${JSON.stringify(r.body.features.map((f) => f.gid))}`);
@@ -442,20 +442,20 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/search?q=ベルリン → Berlin (Japanese name)",
+    name: "/v1/search?q=ベルリン → Berlin (Japanese name)",
     run: async () => {
       const r = await json<{ features: { gid: string }[] }>(
-        "/api/v1/search?q=%E3%83%99%E3%83%AB%E3%83%AA%E3%83%B3&limit=3",
+        "/v1/search?q=%E3%83%99%E3%83%AB%E3%83%AA%E3%83%B3&limit=3",
       );
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.features.some((f) => f.gid === "geonames:2950159"), "no Berlin");
     },
   },
   {
-    name: "/api/v1/search?q=Munich&prefer_lang=de localizes name to München",
+    name: "/v1/search?q=Munich&prefer_lang=de localizes name to München",
     run: async () => {
       const r = await json<{ features: { name: string; gid: string }[] }>(
-        "/api/v1/search?q=Munich&country=DE&limit=3&prefer_lang=de",
+        "/v1/search?q=Munich&country=DE&limit=3&prefer_lang=de",
       );
       expect(r.status === 200, `status=${r.status}`);
       const munich = r.body.features.find((f) => f.gid === "geonames:2867714");
@@ -463,12 +463,12 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/place/geonames:2867714 hydrates aliases (incl. IATA + link)",
+    name: "/v1/place/geonames:2867714 hydrates aliases (incl. IATA + link)",
     run: async () => {
       const r = await json<{
         place: { name: string };
         aliases: { kind: string; lang: string | null; value: string }[];
-      }>("/api/v1/place/geonames:2867714");
+      }>("/v1/place/geonames:2867714");
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.place.name === "Munich", `name=${r.body.place.name}`);
       const de = r.body.aliases.find((a) => a.kind === "name" && a.lang === "de");
@@ -478,26 +478,26 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     },
   },
   {
-    name: "/api/v1/code/iata/MUC → Munich",
+    name: "/v1/code/iata/MUC → Munich",
     run: async () => {
-      const r = await json<{ gid: string; name: string }>("/api/v1/code/iata/MUC");
+      const r = await json<{ gid: string; name: string }>("/v1/code/iata/MUC");
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.gid === "geonames:2867714", `gid=${r.body.gid}`);
       expect(r.body.name === "Munich", `name=${r.body.name}`);
     },
   },
   {
-    name: "/api/v1/code/icao/eddb (case-insensitive) → Berlin",
+    name: "/v1/code/icao/eddb (case-insensitive) → Berlin",
     run: async () => {
-      const r = await json<{ gid: string }>("/api/v1/code/icao/eddb");
+      const r = await json<{ gid: string }>("/v1/code/icao/eddb");
       expect(r.status === 200, `status=${r.status}`);
       expect(r.body.gid === "geonames:2950159", `gid=${r.body.gid}`);
     },
   },
   {
-    name: "/api/v1/code/iata/ZZZ → 404",
+    name: "/v1/code/iata/ZZZ → 404",
     run: async () => {
-      const r = await fetch(`${baseUrl}/api/v1/code/iata/ZZZ`);
+      const r = await fetch(`${baseUrl}/v1/code/iata/ZZZ`);
       expect(r.status === 404, `status=${r.status}`);
     },
   },

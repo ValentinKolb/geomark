@@ -9,7 +9,7 @@
  *     reset between cases.
  *
  *   - Cardinality discipline. Labels are bounded sets only:
- *     `route` = matched route template ("/api/v1/place/{gid}", not the
+ *     `route` = matched route template ("/v1/place/{gid}", not the
  *     actual GID), `status_class` = "2xx"/"3xx"/.../"other" not the
  *     full code, `result` = a fixed enum. No labels for user IDs, IPs,
  *     query strings, gids — anything unbounded would blow up the TSDB.

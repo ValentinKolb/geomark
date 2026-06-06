@@ -62,38 +62,38 @@ let ci = 0;
 
 const scenarios: Scenario[] = [
   {
-    name: "GET /api/v1/search?q=...",
-    next: () => `${BASE}/api/v1/search?q=${encodeURIComponent(queries[qi++ % queries.length]!)}&limit=10`,
+    name: "GET /v1/search?q=...",
+    next: () => `${BASE}/v1/search?q=${encodeURIComponent(queries[qi++ % queries.length]!)}&limit=10`,
   },
   {
-    name: "GET /api/v1/search?q=... &prefer_lang=de",
-    next: () => `${BASE}/api/v1/search?q=${encodeURIComponent(queries[qi++ % queries.length]!)}&prefer_lang=de&limit=10`,
+    name: "GET /v1/search?q=... &prefer_lang=de",
+    next: () => `${BASE}/v1/search?q=${encodeURIComponent(queries[qi++ % queries.length]!)}&prefer_lang=de&limit=10`,
   },
   {
-    name: "GET /api/v1/reverse?lat=...&lng=...",
+    name: "GET /v1/reverse?lat=...&lng=...",
     next: () => {
       const [lat, lng] = reverseSpots[ri++ % reverseSpots.length]!;
-      return `${BASE}/api/v1/reverse?lat=${lat}&lng=${lng}&limit=10&radius=10`;
+      return `${BASE}/v1/reverse?lat=${lat}&lng=${lng}&limit=10&radius=10`;
     },
   },
   {
-    name: "GET /api/v1/place/:gid (with aliases hydration)",
-    next: () => `${BASE}/api/v1/place/${encodeURIComponent(placeGids[pi++ % placeGids.length]!)}`,
+    name: "GET /v1/place/:gid (with aliases hydration)",
+    next: () => `${BASE}/v1/place/${encodeURIComponent(placeGids[pi++ % placeGids.length]!)}`,
   },
   {
-    name: "GET /api/v1/code/:kind/:value",
+    name: "GET /v1/code/:kind/:value",
     next: () => {
       const [k, v] = codes[ci++ % codes.length]!;
-      return `${BASE}/api/v1/code/${k}/${v}`;
+      return `${BASE}/v1/code/${k}/${v}`;
     },
   },
   {
-    name: "GET /api/v1/coverage",
-    next: () => `${BASE}/api/v1/coverage`,
+    name: "GET /v1/coverage",
+    next: () => `${BASE}/v1/coverage`,
   },
   {
-    name: "GET /api/v1/postal?code=10115",
-    next: () => `${BASE}/api/v1/postal?code=10115`,
+    name: "GET /v1/postal?code=10115",
+    next: () => `${BASE}/v1/postal?code=10115`,
   },
 ];
 

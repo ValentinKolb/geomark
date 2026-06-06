@@ -17,4 +17,4 @@ from this repo.
 | `AliasSchema`, `FeatureLayerSchema` | Sub-types |
 
 All response schemas carry `.describe()` calls — these flow through
-`hono-openapi` into the public OpenAPI spec at `/api/v1/openapi.json`.
+`hono-openapi` into the public OpenAPI spec at `/v1/openapi.json`.

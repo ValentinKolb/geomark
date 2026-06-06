@@ -2,13 +2,13 @@
  * HTTP RED middleware: records request rate, error rate (via status
  * class), and request duration for every matched route.
  *
- * The middleware is mounted on the OUTER app at `/api/v1/*` (and any
+ * The middleware is mounted on the OUTER app at `/v1/*` (and any
  * other path you want instrumented). It runs around the v1 sub-app —
  * including its rate-limit and bearer-auth layers — so 429s from the
  * limiter and 401s from the auth gate are visible in the same series.
  *
- * The `route` label is the matched template (`/api/v1/place/:gid`,
- * normalized to OpenAPI-style `/api/v1/place/{gid}`), NOT the actual
+ * The `route` label is the matched template (`/v1/place/:gid`,
+ * normalized to OpenAPI-style `/v1/place/{gid}`), NOT the actual
  * URL. That keeps cardinality at the small fixed set of registered
  * routes — about a dozen for Geomark — instead of one series per GID.
  */

@@ -61,7 +61,7 @@ for (const [name, a] of assets) {
 }
 
 // Same-origin proxy to the Geomark API. Forwards verbatim — the API
-// container itself serves under /api/v1, so paths pass through unchanged.
+// container itself serves under /v1, so paths pass through unchanged.
 // In production behind Traefik, /api/* routes directly to the api service
 // and this proxy is never reached.
 app.all("/api/*", async (c) => {

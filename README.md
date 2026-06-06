@@ -10,30 +10,30 @@ hosted version at **[geomark.dev](https://geomark.dev)**.
 
 ## Endpoints
 
-All routes are mounted under `/api/v1/*` and return JSON. Errors share the
+All routes are mounted under `/v1/*` and return JSON. Errors share the
 shape `{ error, code }`. Full schemas, parameters, and examples live in the
-OpenAPI spec at `/api/v1/openapi.json` (Scalar UI at `/api/v1/docs`).
+OpenAPI spec at `/v1/openapi.json` (Scalar UI at `/v1/docs`).
 
 | Method | Path | Description |
 |---|---|---|
-| `GET`  | `/api/v1/search`              | Forward search by free text. BM25 ranking, trigram fuzzy, unaccent. |
-| `GET`  | `/api/v1/reverse`             | Coordinates → places, ordered by distance, bounded by radius. |
-| `POST` | `/api/v1/batch`               | Up to 100 search or reverse queries in one request. |
-| `GET`  | `/api/v1/place/{gid}`         | Place by ID, with all aliases (alternate names, IATA/ICAO, links). |
-| `GET`  | `/api/v1/code/{kind}/{value}` | Lookup by alternate code: IATA, ICAO, Wikidata, postal variant. |
-| `GET`  | `/api/v1/postal`              | Postal codes by code, place name, or country. |
-| `GET`  | `/api/v1/countries`           | Country list with metadata and place counts. |
-| `GET`  | `/api/v1/countries/{code}`    | Country metadata for a 2-letter ISO 3166-1 alpha-2 code. |
-| `GET`  | `/api/v1/coverage`            | Per-country deepest available data layer (`address` / `place_only` / `none`). |
-| `GET`  | `/api/v1/attribution`         | Data sources, licenses, attribution strings. |
-| `GET`  | `/api/v1/random`              | Up to 5000 random places. Filter by country or `min_population`. |
+| `GET`  | `/v1/search`              | Forward search by free text. BM25 ranking, trigram fuzzy, unaccent. |
+| `GET`  | `/v1/reverse`             | Coordinates → places, ordered by distance, bounded by radius. |
+| `POST` | `/v1/batch`               | Up to 100 search or reverse queries in one request. |
+| `GET`  | `/v1/place/{gid}`         | Place by ID, with all aliases (alternate names, IATA/ICAO, links). |
+| `GET`  | `/v1/code/{kind}/{value}` | Lookup by alternate code: IATA, ICAO, Wikidata, postal variant. |
+| `GET`  | `/v1/postal`              | Postal codes by code, place name, or country. |
+| `GET`  | `/v1/countries`           | Country list with metadata and place counts. |
+| `GET`  | `/v1/countries/{code}`    | Country metadata for a 2-letter ISO 3166-1 alpha-2 code. |
+| `GET`  | `/v1/coverage`            | Per-country deepest available data layer (`address` / `place_only` / `none`). |
+| `GET`  | `/v1/attribution`         | Data sources, licenses, attribution strings. |
+| `GET`  | `/v1/random`              | Up to 5000 random places. Filter by country or `min_population`. |
 
 ---
 
 ## Hosted
 
 ```sh
-curl https://geomark.dev/api/v1/search -G --data-urlencode 'q=berlin'
+curl https://geomark.dev/v1/search -G --data-urlencode 'q=berlin'
 ```
 
 - Free, no signup
@@ -76,7 +76,7 @@ The full env surface is documented per package
 
 | Variable | Default | Description |
 |---|---|---|
-| `API_KEY` | (none) | If set, bearer-auth is enforced on all `/api/v1/*` routes. |
+| `API_KEY` | (none) | If set, bearer-auth is enforced on all `/v1/*` routes. |
 | `RATELIMIT_PER_MINUTE` | `60` | Per-IP rate limit. |
 | `OPENADDRESSES_URL` | (required) | URL of an OpenAddresses bundle ZIP for the data loader. |
 | `GEONAMES_ALIASES_URL` | (none) | Optional. When set, multilingual aliases are loaded too. |
@@ -98,7 +98,7 @@ The dataset is rebuilt monthly. Raw compressed CSV bundles are available at
 rather query locally than hit the API.
 
 When redistributing Geomark output, keep the credit lines from
-`GET /api/v1/attribution` intact. The license obligations come from the
+`GET /v1/attribution` intact. The license obligations come from the
 upstream sources.
 
 ---
@@ -133,5 +133,5 @@ Each package has its own README with setup notes.
 ## License
 
 MIT for the code (see [LICENSE](./LICENSE)). Data is redistributed under the
-upstream licenses listed at `/api/v1/attribution` (primarily GeoNames under
+upstream licenses listed at `/v1/attribution` (primarily GeoNames under
 CC BY 4.0). Downstream redistributors must preserve the upstream attribution.

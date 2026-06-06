@@ -144,12 +144,12 @@ const main = async (): Promise<void> => {
       assert(j.places_count === 2, `places_count=${j.places_count}`);
     }
 
-    // ─── /api/v1/search ─────────────────────────────────────────────────────────
+    // ─── /v1/search ─────────────────────────────────────────────────────────
     _resetRateLimitForTests();
-    console.log("==> GET /api/v1/search?q=berlin");
+    console.log("==> GET /v1/search?q=berlin");
     {
-      const r = await req("/api/v1/search?q=berlin&limit=3");
-      const j = await assertJson<{ features: { name: string }[] }>(r, 200, "/api/v1/search");
+      const r = await req("/v1/search?q=berlin&limit=3");
+      const j = await assertJson<{ features: { name: string }[] }>(r, 200, "/v1/search");
       assert(j.features[0]?.name === "Berlin", `top=${j.features[0]?.name}`);
       assert(
         r.headers.get("X-RateLimit-Remaining") !== null,
@@ -157,107 +157,107 @@ const main = async (): Promise<void> => {
       );
     }
 
-    console.log("==> GET /api/v1/search invalid layer → 400 with ErrorSchema body");
+    console.log("==> GET /v1/search invalid layer → 400 with ErrorSchema body");
     {
-      const r = await req("/api/v1/search?q=x&layers=garbage");
+      const r = await req("/v1/search?q=x&layers=garbage");
       const j = await assertJson<{ error: string; code: string }>(
-        r, 400, "/api/v1/search bad layer",
+        r, 400, "/v1/search bad layer",
       );
       assert(j.code === "BAD_INPUT", `expected code=BAD_INPUT, got ${j.code}`);
       assert(typeof j.error === "string" && j.error.includes("validation failed"), `error="${j.error}"`);
     }
 
-    console.log("==> GET /api/v1/search empty proximity_lat → 400");
+    console.log("==> GET /v1/search empty proximity_lat → 400");
     {
-      const r = await req("/api/v1/search?q=x&proximity_lat=");
-      const j = await assertJson<{ code: string }>(r, 400, "/api/v1/search empty proximity");
+      const r = await req("/v1/search?q=x&proximity_lat=");
+      const j = await assertJson<{ code: string }>(r, 400, "/v1/search empty proximity");
       assert(j.code === "BAD_INPUT", `code=${j.code}`);
     }
 
-    console.log("==> POST /api/v1/batch without Content-Type → 400");
+    console.log("==> POST /v1/batch without Content-Type → 400");
     {
-      const r = await req("/api/v1/batch", {
+      const r = await req("/v1/batch", {
         method: "POST",
         body: JSON.stringify({ entries: [{ type: "search", q: "x" }] }),
       });
       assert(r.status === 400, `expected 400, got ${r.status}`);
     }
 
-    // ─── /api/v1/reverse ────────────────────────────────────────────────────────
-    console.log("==> GET /api/v1/reverse");
+    // ─── /v1/reverse ────────────────────────────────────────────────────────
+    console.log("==> GET /v1/reverse");
     {
-      const r = await req("/api/v1/reverse?lat=52.52&lng=13.41&limit=3");
-      const j = await assertJson<{ features: { distance_km: number }[] }>(r, 200, "/api/v1/reverse");
+      const r = await req("/v1/reverse?lat=52.52&lng=13.41&limit=3");
+      const j = await assertJson<{ features: { distance_km: number }[] }>(r, 200, "/v1/reverse");
       assert(j.features.length > 0, "expected >=1 feature");
       assert((j.features[0]?.distance_km ?? 999) < 1, "expected <1km");
     }
 
-    // ─── /api/v1/place/:gid ─────────────────────────────────────────────────────
-    console.log("==> GET /api/v1/place/:gid");
+    // ─── /v1/place/:gid ─────────────────────────────────────────────────────
+    console.log("==> GET /v1/place/:gid");
     {
-      const r = await req("/api/v1/place/geonames:2950159");
-      const j = await assertJson<{ name: string }>(r, 200, "/api/v1/place hit");
+      const r = await req("/v1/place/geonames:2950159");
+      const j = await assertJson<{ name: string }>(r, 200, "/v1/place hit");
       assert(j.name === "Berlin", `got ${j.name}`);
     }
-    console.log("==> GET /api/v1/place/missing → 404");
+    console.log("==> GET /v1/place/missing → 404");
     {
-      const r = await req("/api/v1/place/geonames:does-not-exist");
+      const r = await req("/v1/place/geonames:does-not-exist");
       assert(r.status === 404, `expected 404, got ${r.status}`);
     }
 
-    // ─── /api/v1/countries ──────────────────────────────────────────────────────
-    console.log("==> GET /api/v1/countries");
+    // ─── /v1/countries ──────────────────────────────────────────────────────
+    console.log("==> GET /v1/countries");
     {
-      const r = await req("/api/v1/countries");
-      const j = await assertJson<{ countries: { code: string }[]; total: number }>(r, 200, "/api/v1/countries");
+      const r = await req("/v1/countries");
+      const j = await assertJson<{ countries: { code: string }[]; total: number }>(r, 200, "/v1/countries");
       assert(j.total === 2, `total=${j.total}`);
     }
-    console.log("==> GET /api/v1/countries/de");
+    console.log("==> GET /v1/countries/de");
     {
-      const r = await req("/api/v1/countries/de");
-      const j = await assertJson<{ name: string }>(r, 200, "/api/v1/countries/de");
+      const r = await req("/v1/countries/de");
+      const j = await assertJson<{ name: string }>(r, 200, "/v1/countries/de");
       assert(j.name === "Germany", `got ${j.name}`);
     }
-    console.log("==> GET /api/v1/countries/xy → 404");
+    console.log("==> GET /v1/countries/xy → 404");
     {
-      const r = await req("/api/v1/countries/xy");
+      const r = await req("/v1/countries/xy");
       assert(r.status === 404, `expected 404, got ${r.status}`);
     }
-    console.log("==> GET /api/v1/countries/abc → 400 (regex)");
+    console.log("==> GET /v1/countries/abc → 400 (regex)");
     {
-      const r = await req("/api/v1/countries/abc");
+      const r = await req("/v1/countries/abc");
       assert(r.status === 400, `expected 400, got ${r.status}`);
     }
 
-    // ─── /api/v1/postal ─────────────────────────────────────────────────────────
-    console.log("==> GET /api/v1/postal?code=10115");
+    // ─── /v1/postal ─────────────────────────────────────────────────────────
+    console.log("==> GET /v1/postal?code=10115");
     {
-      const r = await req("/api/v1/postal?code=10115");
-      const j = await assertJson<{ postal_codes: { place_name: string }[] }>(r, 200, "/api/v1/postal");
+      const r = await req("/v1/postal?code=10115");
+      const j = await assertJson<{ postal_codes: { place_name: string }[] }>(r, 200, "/v1/postal");
       assert(
         j.postal_codes[0]?.place_name === "Berlin Mitte",
         `got ${j.postal_codes[0]?.place_name}`,
       );
     }
-    console.log("==> GET /api/v1/postal (no params) → 400");
+    console.log("==> GET /v1/postal (no params) → 400");
     {
-      const r = await req("/api/v1/postal");
+      const r = await req("/v1/postal");
       assert(r.status === 400, `expected 400, got ${r.status}`);
     }
 
-    // ─── /api/v1/coverage ───────────────────────────────────────────────────────
-    console.log("==> GET /api/v1/coverage");
+    // ─── /v1/coverage ───────────────────────────────────────────────────────
+    console.log("==> GET /v1/coverage");
     {
-      const r = await req("/api/v1/coverage");
-      const j = await assertJson<{ countries: Record<string, string> }>(r, 200, "/api/v1/coverage");
+      const r = await req("/v1/coverage");
+      const j = await assertJson<{ countries: Record<string, string> }>(r, 200, "/v1/coverage");
       assert(j.countries["DE"] === "address", `DE=${j.countries["DE"]}`);
       assert(j.countries["US"] === "place_only", `US=${j.countries["US"]}`);
     }
 
-    // ─── /api/v1/batch ──────────────────────────────────────────────────────────
-    console.log("==> POST /api/v1/batch");
+    // ─── /v1/batch ──────────────────────────────────────────────────────────
+    console.log("==> POST /v1/batch");
     {
-      const r = await req("/api/v1/batch", {
+      const r = await req("/v1/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -267,7 +267,7 @@ const main = async (): Promise<void> => {
           ],
         }),
       });
-      const j = await assertJson<{ results: { features: { name: string }[] }[] }>(r, 200, "/api/v1/batch");
+      const j = await assertJson<{ results: { features: { name: string }[] }[] }>(r, 200, "/v1/batch");
       assert(j.results.length === 2, "results length");
       assert(j.results[0]!.features[0]?.name === "Berlin", "batch[0]");
     }
@@ -280,7 +280,7 @@ const main = async (): Promise<void> => {
       _resetRateLimitForTests();
       let okCount = 0, throttled = 0;
       for (let i = 0; i < 65; i++) {
-        const r = await req("/api/v1/coverage", {
+        const r = await req("/v1/coverage", {
           headers: { "X-Forwarded-For": "203.0.113.42" },
         });
         if (r.status === 200) okCount++;
@@ -290,7 +290,7 @@ const main = async (): Promise<void> => {
       assert(throttled === 5, `expected 5 throttled, got ${throttled}`);
 
       // A different IP should not be throttled.
-      const r = await req("/api/v1/coverage", {
+      const r = await req("/v1/coverage", {
         headers: { "X-Forwarded-For": "203.0.113.99" },
       });
       assert(r.status === 200, `different IP should pass: ${r.status}`);
@@ -306,14 +306,14 @@ const main = async (): Promise<void> => {
       }>(r, 200, "/openapi.json");
       assert(typeof j.openapi === "string", "openapi field");
       const expected = [
-        "/api/v1/search",
-        "/api/v1/reverse",
-        "/api/v1/place/{gid}",
-        "/api/v1/countries",
-        "/api/v1/countries/{code}",
-        "/api/v1/postal",
-        "/api/v1/coverage",
-        "/api/v1/batch",
+        "/v1/search",
+        "/v1/reverse",
+        "/v1/place/{gid}",
+        "/v1/countries",
+        "/v1/countries/{code}",
+        "/v1/postal",
+        "/v1/coverage",
+        "/v1/batch",
       ];
       for (const p of expected) {
         assert(p in j.paths, `path missing in spec: ${p}`);

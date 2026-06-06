@@ -61,7 +61,7 @@ const jsonResponse = (
   content: { "application/json": { schema: resolver(schema) } },
 });
 
-// Shared error responses applied to every /api/v1/* route.
+// Shared error responses applied to every /v1/* route.
 const COMMON_ERRORS = {
   400: jsonResponse(ErrorSchema, "Invalid input"),
   401: jsonResponse(ErrorSchema, "API key required"),

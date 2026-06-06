@@ -1,7 +1,7 @@
 import { createSignal, Index, onCleanup, onMount } from "solid-js";
 
 /**
- * Live world map — fetches `/api/v1/random` every 2s and tweens each
+ * Live world map — fetches `/v1/random` every 2s and tweens each
  * dot's position from its old sample to its new sample.
  *
  * Why position-tween instead of opacity cross-fade: with two
@@ -47,7 +47,7 @@ export default function LiveWorldMap() {
 
   const fetchPlaces = async (): Promise<RandomPlace[] | null> => {
     try {
-      const r = await fetch(`/api/v1/random?limit=${LIMIT}`);
+      const r = await fetch(`/v1/random?limit=${LIMIT}`);
       if (!r.ok) return null;
       const body = (await r.json()) as { places: RandomPlace[] };
       return body.places ?? [];

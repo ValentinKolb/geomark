@@ -316,8 +316,8 @@ export default ssr(async (c) => {
 
           <p class="coord text-[var(--color-bone-fade)] mt-4">
             Programmatic access:{" "}
-            <a href="/api/v1/attribution" class="coord-tide hover:underline">
-              /api/v1/attribution
+            <a href="/v1/attribution" class="coord-tide hover:underline">
+              /v1/attribution
             </a>
           </p>
         </section>
@@ -495,7 +495,7 @@ $ psql -c "\\copy geomark.countries FROM 'countries.csv' WITH (FORMAT csv, HEADE
               The same files are what the data loader feeds into the API
               container. If you'd rather hit the API instead of running
               your own Postgres, point at{" "}
-              <code class="code-inline">geomark.dev/api/v1/*</code> — see{" "}
+              <code class="code-inline">geomark.dev/v1/*</code> — see{" "}
               <a href="/docs" class="coord-tide hover:underline">/docs</a>.
             </p>
           </div>
@@ -551,7 +551,7 @@ $ psql -c "\\copy geomark.countries FROM 'countries.csv' WITH (FORMAT csv, HEADE
                 ["GeoNames data is CC BY 4.0", "You can use, share, and adapt it commercially. Provide attribution: 'GeoNames — geonames.org (CC BY 4.0)' somewhere visible to your users."],
                 ["OpenAddresses is mixed", "Per-country files have per-source licenses. The bundle ships an attribution.txt — preserve it when redistributing."],
                 ["Geomark code is MIT", "The API and tooling are MIT. The data above is not — its license follows the upstream sources."],
-                ["Programmatic attribution string", "GET /api/v1/attribution returns ready-to-paste credit text in JSON. Copy it into your About page or footer."],
+                ["Programmatic attribution string", "GET /v1/attribution returns ready-to-paste credit text in JSON. Copy it into your About page or footer."],
               ].map(([title, desc]) => (
                 <li class="flex items-baseline gap-3">
                   <i class="ti ti-check text-[var(--color-marker)] shrink-0 mt-0.5" aria-hidden="true" />

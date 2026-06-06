@@ -70,25 +70,25 @@ describe("/health and /ready", () => {
 });
 
 describe("/geo routes — happy paths", () => {
-  test("GET /api/v1/search?q=berlin", async () => {
+  test("GET /v1/search?q=berlin", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=berlin&limit=3");
+    const r = await req("/v1/search?q=berlin&limit=3");
     expect(r.status).toBe(200);
     const j = (await r.json()) as { features: { name: string }[] };
     expect(j.features[0]?.name).toBe("Berlin");
   });
 
-  test("GET /api/v1/reverse", async () => {
+  test("GET /v1/reverse", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/reverse?lat=52.52&lng=13.41&limit=3");
+    const r = await req("/v1/reverse?lat=52.52&lng=13.41&limit=3");
     expect(r.status).toBe(200);
     const j = (await r.json()) as { features: { distance_km: number }[] };
     expect(j.features[0]?.distance_km ?? 999).toBeLessThan(0.5);
   });
 
-  test("GET /api/v1/place/:gid (hit) returns {place, aliases}", async () => {
+  test("GET /v1/place/:gid (hit) returns {place, aliases}", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/place/geonames:2950159");
+    const r = await req("/v1/place/geonames:2950159");
     expect(r.status).toBe(200);
     const j = (await r.json()) as {
       place: { name: string };
@@ -98,40 +98,40 @@ describe("/geo routes — happy paths", () => {
     expect(Array.isArray(j.aliases)).toBe(true);
   });
 
-  test("GET /api/v1/code/:kind/:value (404 when no aliases dataset loaded)", async () => {
+  test("GET /v1/code/:kind/:value (404 when no aliases dataset loaded)", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/code/iata/MUC");
+    const r = await req("/v1/code/iata/MUC");
     expect(r.status).toBe(404);
     const j = (await r.json()) as { code: string };
     expect(j.code).toBe("NOT_FOUND");
   });
 
-  test("GET /api/v1/place/:gid (miss → 404)", async () => {
+  test("GET /v1/place/:gid (miss → 404)", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/place/geonames:does-not-exist");
+    const r = await req("/v1/place/geonames:does-not-exist");
     expect(r.status).toBe(404);
     const j = (await r.json()) as { code: string };
     expect(j.code).toBe("NOT_FOUND");
   });
 
-  test("GET /api/v1/countries", async () => {
+  test("GET /v1/countries", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/countries");
+    const r = await req("/v1/countries");
     expect(r.status).toBe(200);
     const j = (await r.json()) as { total: number };
     expect(j.total).toBe(3);
   });
 
-  test("GET /api/v1/countries/de", async () => {
+  test("GET /v1/countries/de", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/countries/de");
+    const r = await req("/v1/countries/de");
     expect(r.status).toBe(200);
     expect(((await r.json()) as { name: string }).name).toBe("Germany");
   });
 
-  test("GET /api/v1/postal?code=10115", async () => {
+  test("GET /v1/postal?code=10115", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/postal?code=10115");
+    const r = await req("/v1/postal?code=10115");
     expect(r.status).toBe(200);
     const j = (await r.json()) as {
       postal_codes: { place_name: string }[];
@@ -139,18 +139,18 @@ describe("/geo routes — happy paths", () => {
     expect(j.postal_codes[0]?.place_name).toBe("Berlin Mitte");
   });
 
-  test("GET /api/v1/coverage", async () => {
+  test("GET /v1/coverage", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/coverage");
+    const r = await req("/v1/coverage");
     expect(r.status).toBe(200);
     const j = (await r.json()) as { countries: Record<string, string> };
     expect(j.countries["DE"]).toBe("address");
     expect(j.countries["FR"]).toBe("none");
   });
 
-  test("POST /api/v1/batch", async () => {
+  test("POST /v1/batch", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/batch", {
+    const r = await req("/v1/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -171,7 +171,7 @@ describe("/geo routes — happy paths", () => {
 describe("/geo routes — validation errors return ErrorSchema", () => {
   test("invalid layer → 400 BAD_INPUT", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=x&layers=garbage");
+    const r = await req("/v1/search?q=x&layers=garbage");
     expect(r.status).toBe(400);
     const j = (await r.json()) as { code: string; error: string };
     expect(j.code).toBe("BAD_INPUT");
@@ -180,32 +180,32 @@ describe("/geo routes — validation errors return ErrorSchema", () => {
 
   test("empty proximity_lat → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=x&proximity_lat=");
+    const r = await req("/v1/search?q=x&proximity_lat=");
     expect(r.status).toBe(400);
     expect(((await r.json()) as { code: string }).code).toBe("BAD_INPUT");
   });
 
   test("missing q → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search");
+    const r = await req("/v1/search");
     expect(r.status).toBe(400);
   });
 
   test("country regex mismatch → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/countries/abc");
+    const r = await req("/v1/countries/abc");
     expect(r.status).toBe(400);
   });
 
   test("postal without code or place → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/postal");
+    const r = await req("/v1/postal");
     expect(r.status).toBe(400);
   });
 
   test("batch without Content-Type → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/batch", {
+    const r = await req("/v1/batch", {
       method: "POST",
       body: JSON.stringify({ entries: [{ type: "search", q: "x" }] }),
     });
@@ -214,7 +214,7 @@ describe("/geo routes — validation errors return ErrorSchema", () => {
 
   test("batch with empty entries → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/batch", {
+    const r = await req("/v1/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries: [] }),
@@ -227,50 +227,50 @@ describe("/geo routes — schema boundaries", () => {
   test("q longer than 200 chars → 400", async () => {
     resetRateLimit();
     const long = "a".repeat(201);
-    const r = await req(`/api/v1/search?q=${encodeURIComponent(long)}`);
+    const r = await req(`/v1/search?q=${encodeURIComponent(long)}`);
     expect(r.status).toBe(400);
   });
 
   test("inverted bbox → 400", async () => {
     resetRateLimit();
     // minLng > maxLng
-    const r = await req("/api/v1/search?q=x&bbox=20,40,10,50");
+    const r = await req("/v1/search?q=x&bbox=20,40,10,50");
     expect(r.status).toBe(400);
   });
 
   test("bbox out of range → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=x&bbox=-200,40,10,50");
+    const r = await req("/v1/search?q=x&bbox=-200,40,10,50");
     expect(r.status).toBe(400);
   });
 
   test("only proximity_lat without proximity_lng → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=x&proximity_lat=52.5");
+    const r = await req("/v1/search?q=x&proximity_lat=52.5");
     expect(r.status).toBe(400);
   });
 
   test("reverse out-of-range lat → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/reverse?lat=91&lng=13");
+    const r = await req("/v1/reverse?lat=91&lng=13");
     expect(r.status).toBe(400);
   });
 
   test("reverse missing lng → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/reverse?lat=52");
+    const r = await req("/v1/reverse?lat=52");
     expect(r.status).toBe(400);
   });
 
   test("limit=0 → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=x&limit=0");
+    const r = await req("/v1/search?q=x&limit=0");
     expect(r.status).toBe(400);
   });
 
   test("limit=999 → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/search?q=x&limit=999");
+    const r = await req("/v1/search?q=x&limit=999");
     expect(r.status).toBe(400);
   });
 
@@ -280,7 +280,7 @@ describe("/geo routes — schema boundaries", () => {
       type: "search" as const,
       q: "x",
     }));
-    const r = await req("/api/v1/batch", {
+    const r = await req("/v1/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries }),
@@ -290,7 +290,7 @@ describe("/geo routes — schema boundaries", () => {
 
   test("batch entry with bad type → 400", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/batch", {
+    const r = await req("/v1/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries: [{ type: "garbage", q: "x" }] }),
@@ -306,7 +306,7 @@ describe("rate limit (Traefik-aware via X-Forwarded-For)", () => {
     let okCount = 0;
     let throttled = 0;
     for (let i = 0; i < 65; i++) {
-      const r = await req("/api/v1/coverage", { headers });
+      const r = await req("/v1/coverage", { headers });
       if (r.status === 200) okCount++;
       else if (r.status === 429) throttled++;
     }
@@ -318,10 +318,10 @@ describe("rate limit (Traefik-aware via X-Forwarded-For)", () => {
     resetRateLimit();
     // exhaust IP A
     for (let i = 0; i < 65; i++) {
-      await req("/api/v1/coverage", { headers: { "X-Forwarded-For": "203.0.113.1" } });
+      await req("/v1/coverage", { headers: { "X-Forwarded-For": "203.0.113.1" } });
     }
     // IP B should be unaffected
-    const r = await req("/api/v1/coverage", {
+    const r = await req("/v1/coverage", {
       headers: { "X-Forwarded-For": "203.0.113.2" },
     });
     expect(r.status).toBe(200);
@@ -332,7 +332,7 @@ describe("rate limit (Traefik-aware via X-Forwarded-For)", () => {
     const headers = { "X-Forwarded-For": "203.0.113.99" };
     let r: Response | null = null;
     for (let i = 0; i < 65; i++) {
-      r = await req("/api/v1/coverage", { headers });
+      r = await req("/v1/coverage", { headers });
       if (r.status === 429) break;
     }
     expect(r?.status).toBe(429);
@@ -345,9 +345,9 @@ describe("rate limit (Traefik-aware via X-Forwarded-For)", () => {
 });
 
 describe("OpenAPI + docs", () => {
-  test("/api/v1/openapi.json lists all /geo paths with 401/429/500", async () => {
+  test("/v1/openapi.json lists all /geo paths with 401/429/500", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/openapi.json");
+    const r = await req("/v1/openapi.json");
     expect(r.status).toBe(200);
     const spec = (await r.json()) as {
       openapi: string;
@@ -355,15 +355,15 @@ describe("OpenAPI + docs", () => {
     };
     expect(spec.openapi).toBeDefined();
     const expected = [
-      "/api/v1/search",
-      "/api/v1/reverse",
-      "/api/v1/place/{gid}",
-      "/api/v1/code/{kind}/{value}",
-      "/api/v1/countries",
-      "/api/v1/countries/{code}",
-      "/api/v1/postal",
-      "/api/v1/coverage",
-      "/api/v1/batch",
+      "/v1/search",
+      "/v1/reverse",
+      "/v1/place/{gid}",
+      "/v1/code/{kind}/{value}",
+      "/v1/countries",
+      "/v1/countries/{code}",
+      "/v1/postal",
+      "/v1/coverage",
+      "/v1/batch",
     ];
     for (const p of expected) {
       expect(spec.paths[p]).toBeDefined();
@@ -374,17 +374,17 @@ describe("OpenAPI + docs", () => {
     }
   });
 
-  test("/api/v1/docs renders Scalar HTML", async () => {
+  test("/v1/docs renders Scalar HTML", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/docs");
+    const r = await req("/v1/docs");
     expect(r.status).toBe(200);
     const html = await r.text();
     expect(html.toLowerCase()).toContain("scalar");
   });
 
-  test("/api/v1/llms.txt is non-empty markdown", async () => {
+  test("/v1/llms.txt is non-empty markdown", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/llms.txt");
+    const r = await req("/v1/llms.txt");
     expect(r.status).toBe(200);
     const text = await r.text();
     expect(text.length).toBeGreaterThan(100);

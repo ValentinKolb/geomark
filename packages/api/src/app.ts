@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { bearerAuth } from "hono/bearer-auth";
+import { cors } from "hono/cors";
 import { Scalar } from "@scalar/hono-api-reference";
 import { generateSpecs } from "hono-openapi";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
@@ -43,6 +44,20 @@ export const createApp = async (): Promise<{
     if (path === "/health" || path === "/ready") return next();
     return logger()(c, next);
   });
+
+  // CORS: open API → allow any origin. Authorization header is permitted
+  // (the Bearer auth path), but credentials:include is NOT — `origin: "*"`
+  // is incompatible with credentialed requests anyway, and we don't use
+  // cookies. Browsers cache the preflight for a day.
+  app.use(
+    "*",
+    cors({
+      origin: "*",
+      allowMethods: ["GET", "POST", "OPTIONS"],
+      allowHeaders: ["Authorization", "Content-Type"],
+      maxAge: 86400,
+    }),
+  );
 
   app.use(
     "*",
@@ -103,7 +118,7 @@ export const createApp = async (): Promise<{
   });
 
   // ─── /metrics (Prometheus) ─────────────────────────────────────────────────
-  // Mounted at the root, NOT under /api/v1 — Prometheus convention,
+  // Mounted at the root, NOT under /v1 — Prometheus convention,
   // not part of the public API contract. Bearer-auth gated via layered
   // METRICS_TOKEN → API_KEY → open mode (see ./metrics/auth.ts).
   //
@@ -133,21 +148,21 @@ export const createApp = async (): Promise<{
   // requests that arrive after createApp() resolves see the final values.
   let spec: object = {};
   let llmsTxt = "";
-  app.get("/api/v1/openapi.json", (c) => c.json(spec));
+  app.get("/v1/openapi.json", (c) => c.json(spec));
   app.get(
-    "/api/v1/docs",
-    Scalar({ theme: "saturn", url: "/api/v1/openapi.json" }),
+    "/v1/docs",
+    Scalar({ theme: "saturn", url: "/v1/openapi.json" }),
   );
-  app.get("/api/v1/llms.txt", (c) => c.text(llmsTxt));
+  app.get("/v1/llms.txt", (c) => c.text(llmsTxt));
 
-  // ─── /api/v1/* (rate-limited + optionally auth-gated) ──────────────────────
-  // The container serves under /api/v1 directly. Operators who don't want
+  // ─── /v1/* (rate-limited + optionally auth-gated) ──────────────────────
+  // The container serves under /v1 directly. Operators who don't want
   // the prefix can strip it at the gateway (e.g. Traefik StripPrefix).
   //
   // RED middleware wraps the v1 sub-app so 429s from rate-limit and 401s
   // from bearer-auth are visible in the same series as application errors.
   if (config.metricsEnabled) {
-    app.use("/api/v1/*", metricsMiddleware(metrics));
+    app.use("/v1/*", metricsMiddleware(metrics));
   }
   const v1 = new Hono();
   v1.use(
@@ -180,7 +195,7 @@ export const createApp = async (): Promise<{
     );
   }
   v1.route("/", geoRoutes);
-  app.route("/api/v1", v1);
+  app.route("/v1", v1);
 
   // ─── OpenAPI spec generation ───────────────────────────────────────────────
   // Routes are now mounted; assemble the spec and llms.txt and write them
@@ -200,7 +215,7 @@ export const createApp = async (): Promise<{
           "if you'd rather pull the data and query it locally.\n\n" +
           "Data comes from GeoNames (CC BY 4.0) and OpenAddresses contributors " +
           "(mixed per-source licenses). When redistributing, keep the credit " +
-          "lines from `GET /api/v1/attribution` intact — the `info.license` " +
+          "lines from `GET /v1/attribution` intact — the `info.license` " +
           "below applies to the dataset; the API code itself is MIT.",
         license: {
           name: "CC BY 4.0 (data)",

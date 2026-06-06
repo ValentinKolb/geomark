@@ -192,8 +192,8 @@ export default ssr(async (c) => {
                 (lizenziert je nach Quelle: CC0, CC BY, ODbL, Public
                 Domain). Bei Weiterverwendung der Daten bitte die
                 Quellenangaben aus{" "}
-                <a href="/api/v1/attribution" class="coord-tide hover:underline">
-                  /api/v1/attribution
+                <a href="/v1/attribution" class="coord-tide hover:underline">
+                  /v1/attribution
                 </a>{" "}
                 beibehalten.
               </p>
@@ -225,7 +225,7 @@ export default ssr(async (c) => {
               <strong class="text-[var(--color-bone)] font-medium">API-Aufrufe.</strong>{" "}
               Die interaktive Suche und die Welt-Karte rufen die
               öffentliche Geomark-API unter{" "}
-              <code class="code-inline">/api/v1/*</code> auf. Diese Anfragen
+              <code class="code-inline">/v1/*</code> auf. Diese Anfragen
               werden zur Auslieferung der Antwort verarbeitet; die IP-Adresse
               wird kurzzeitig im Speicher des Rate-Limiters vorgehalten und
               nicht persistent geloggt oder weitergegeben.

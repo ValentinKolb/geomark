@@ -7,7 +7,7 @@ import { Code } from "../components/Code";
  * Docs page — three sections:
  *
  *   1. How it works  — pipeline diagram + explanation, attributes GeoNames
- *   2. API reference — every /api/v1/* route with curl + typescript snippets
+ *   2. API reference — every /v1/* route with curl + typescript snippets
  *                       (toggle persists in localStorage via the LangToggle
  *                       island; CSS rules in styles.css hide the inactive
  *                       snippet block)
@@ -45,7 +45,7 @@ const PIPELINE: Step[] = [
   {
     icon: "ti-bolt",
     title: "API",
-    sub: "/api/v1/*",
+    sub: "/v1/*",
     tags: ["Hono on Bun"],
   },
   {
@@ -107,7 +107,7 @@ type EndpointDoc = {
 const ENDPOINTS: EndpointDoc[] = [
   {
     method: "GET",
-    path: "/api/v1/search",
+    path: "/v1/search",
     summary: "Forward search by free text",
     description:
       "BM25-ranked tokenized matches first, trigram fuzzy fallback, unaccent normalization. Multilingual when aliases are loaded — searching 'münchen' returns Munich with a `matched_alias` field showing which language matched.",
@@ -120,9 +120,9 @@ const ENDPOINTS: EndpointDoc[] = [
       { name: "prefer_lang", desc: "Localize the returned `name` field if an alias for that language exists." },
       { name: "layers", desc: "Comma-separated subset of `address`,`locality`. Default both." },
     ],
-    curl: `curl 'https://geomark.dev/api/v1/search?q=berlin&limit=5'`,
+    curl: `curl 'https://geomark.dev/v1/search?q=berlin&limit=5'`,
     ts: `const params = new URLSearchParams({ q: "berlin", limit: "5" });
-const res = await fetch(\`https://geomark.dev/api/v1/search?\${params}\`);
+const res = await fetch(\`https://geomark.dev/v1/search?\${params}\`);
 const { features } = await res.json();`,
     response: `{
   "features": [
@@ -143,7 +143,7 @@ const { features } = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/reverse",
+    path: "/v1/reverse",
     summary: "Search by coordinates",
     description:
       "Find the nearest places + addresses to a point. Results ordered by spheroid distance, capped to `radius` km. Each feature gets a `distance_km` field.",
@@ -154,11 +154,11 @@ const { features } = await res.json();`,
       { name: "limit", desc: "Max results, 1–50. Default 10." },
       { name: "layers", desc: "Comma-separated subset of `address`,`locality`. Default both." },
     ],
-    curl: `curl 'https://geomark.dev/api/v1/reverse?lat=52.52&lng=13.41&radius=5'`,
+    curl: `curl 'https://geomark.dev/v1/reverse?lat=52.52&lng=13.41&radius=5'`,
     ts: `const params = new URLSearchParams({
   lat: "52.52", lng: "13.41", radius: "5",
 });
-const res = await fetch(\`https://geomark.dev/api/v1/reverse?\${params}\`);
+const res = await fetch(\`https://geomark.dev/v1/reverse?\${params}\`);
 const { features } = await res.json();`,
     response: `{
   "features": [
@@ -179,11 +179,11 @@ const { features } = await res.json();`,
   },
   {
     method: "POST",
-    path: "/api/v1/batch",
+    path: "/v1/batch",
     summary: "Batch search/reverse",
     description:
       "Up to 100 search or reverse queries in one request. Per-entry errors return an empty feature list for that slot — the call as a whole still succeeds. For high-volume offline workloads, consider pulling the raw datasets at geomark.dev/data instead.",
-    curl: `curl -X POST 'https://geomark.dev/api/v1/batch' \\
+    curl: `curl -X POST 'https://geomark.dev/v1/batch' \\
   -H 'Content-Type: application/json' \\
   -d '{
     "entries": [
@@ -191,7 +191,7 @@ const { features } = await res.json();`,
       { "type": "reverse", "lat": 52.52, "lng": 13.41, "limit": 1 }
     ]
   }'`,
-    ts: `const res = await fetch("https://geomark.dev/api/v1/batch", {
+    ts: `const res = await fetch("https://geomark.dev/v1/batch", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -211,13 +211,13 @@ const { results } = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/place/{gid}",
+    path: "/v1/place/{gid}",
     summary: "Get place by ID",
     description:
       "Returns a single place plus its `aliases` (alternate names by language, IATA/ICAO codes, Wikipedia URL, postal variants). Aliases is empty when the dataset has no aliases artefact. Global ID format: `geonames:<geonameid>`.",
-    curl: `curl 'https://geomark.dev/api/v1/place/geonames:2950159'`,
+    curl: `curl 'https://geomark.dev/v1/place/geonames:2950159'`,
     ts: `const res = await fetch(
-  "https://geomark.dev/api/v1/place/geonames:2950159",
+  "https://geomark.dev/v1/place/geonames:2950159",
 );
 const { place, aliases } = await res.json();`,
     response: `{
@@ -239,13 +239,13 @@ const { place, aliases } = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/code/{kind}/{value}",
+    path: "/v1/code/{kind}/{value}",
     summary: "Lookup by alternate code",
     description:
       "Find a place via an alternate code. Common kinds: `iata`, `icao`, `faac` (airport codes), `abbr` (e.g. NYC), `wkdt` (Wikidata id), `name` (alternate names — may be ambiguous), `post` (postal variant). Case-insensitive on `value`. Requires the aliases dataset.",
-    curl: `curl 'https://geomark.dev/api/v1/code/iata/MUC'`,
+    curl: `curl 'https://geomark.dev/v1/code/iata/MUC'`,
     ts: `const res = await fetch(
-  "https://geomark.dev/api/v1/code/iata/MUC",
+  "https://geomark.dev/v1/code/iata/MUC",
 );
 if (res.status === 404) return null;
 const place = await res.json();`,
@@ -261,7 +261,7 @@ const place = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/postal",
+    path: "/v1/postal",
     summary: "Query postal codes",
     description:
       "Filter by `code` (exact), `place` (fuzzy match), and/or `country`. At least one of `code` or `place` is required.",
@@ -271,9 +271,9 @@ const place = await res.json();`,
       { name: "country", desc: "Restrict to one ISO 3166-1 alpha-2." },
       { name: "limit", desc: "Max results, 1–100. Default 20." },
     ],
-    curl: `curl 'https://geomark.dev/api/v1/postal?code=10115'`,
+    curl: `curl 'https://geomark.dev/v1/postal?code=10115'`,
     ts: `const params = new URLSearchParams({ code: "10115" });
-const res = await fetch(\`https://geomark.dev/api/v1/postal?\${params}\`);
+const res = await fetch(\`https://geomark.dev/v1/postal?\${params}\`);
 const { postal_codes } = await res.json();`,
     response: `{
   "postal_codes": [
@@ -291,12 +291,12 @@ const { postal_codes } = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/countries",
+    path: "/v1/countries",
     summary: "List countries",
     description:
       "All countries known to the dataset, with metadata and a `place_count` of associated places.",
-    curl: `curl 'https://geomark.dev/api/v1/countries'`,
-    ts: `const res = await fetch("https://geomark.dev/api/v1/countries");
+    curl: `curl 'https://geomark.dev/v1/countries'`,
+    ts: `const res = await fetch("https://geomark.dev/v1/countries");
 const { countries, total } = await res.json();`,
     response: `{
   "total": 252,
@@ -317,12 +317,12 @@ const { countries, total } = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/countries/{code}",
+    path: "/v1/countries/{code}",
     summary: "Get country",
     description:
       "Country metadata for a single 2-letter ISO 3166-1 alpha-2 code. Case-insensitive on the path parameter.",
-    curl: `curl 'https://geomark.dev/api/v1/countries/de'`,
-    ts: `const res = await fetch("https://geomark.dev/api/v1/countries/de");
+    curl: `curl 'https://geomark.dev/v1/countries/de'`,
+    ts: `const res = await fetch("https://geomark.dev/v1/countries/de");
 if (res.status === 404) return null;
 const country = await res.json();`,
     response: `{
@@ -338,12 +338,12 @@ const country = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/coverage",
+    path: "/v1/coverage",
     summary: "Coverage map",
     description:
       "Per-country deepest available data layer: `address`, `place_only`, or `none`.",
-    curl: `curl 'https://geomark.dev/api/v1/coverage'`,
-    ts: `const res = await fetch("https://geomark.dev/api/v1/coverage");
+    curl: `curl 'https://geomark.dev/v1/coverage'`,
+    ts: `const res = await fetch("https://geomark.dev/v1/coverage");
 const { countries } = await res.json();
 // countries["DE"] === "address"`,
     response: `{
@@ -358,7 +358,7 @@ const { countries } = await res.json();
   },
   {
     method: "GET",
-    path: "/api/v1/random",
+    path: "/v1/random",
     summary: "Random sample",
     description:
       "Up to 5000 random places. Useful for visualisations, sampling, and dataset exploration. Filter by `country` and/or `min_population`.",
@@ -367,12 +367,12 @@ const { countries } = await res.json();
       { name: "country", desc: "Restrict to one ISO 3166-1 alpha-2." },
       { name: "min_population", desc: "Only places with population ≥ this value." },
     ],
-    curl: `curl 'https://geomark.dev/api/v1/random?limit=500&min_population=1000000'`,
+    curl: `curl 'https://geomark.dev/v1/random?limit=500&min_population=1000000'`,
     ts: `const params = new URLSearchParams({
   limit: "500",
   min_population: "1000000",
 });
-const res = await fetch(\`https://geomark.dev/api/v1/random?\${params}\`);
+const res = await fetch(\`https://geomark.dev/v1/random?\${params}\`);
 const { places } = await res.json();`,
     response: `{
   "total": 500,
@@ -391,12 +391,12 @@ const { places } = await res.json();`,
   },
   {
     method: "GET",
-    path: "/api/v1/attribution",
+    path: "/v1/attribution",
     summary: "Data sources & licenses",
     description:
       "Required reading if you redistribute Geomark output. Lists every upstream data source, its license, and a ready-to-paste attribution string.",
-    curl: `curl 'https://geomark.dev/api/v1/attribution'`,
-    ts: `const res = await fetch("https://geomark.dev/api/v1/attribution");
+    curl: `curl 'https://geomark.dev/v1/attribution'`,
+    ts: `const res = await fetch("https://geomark.dev/v1/attribution");
 const { data_sources, api_license, notice } = await res.json();`,
     response: `{
   "data_sources": [
@@ -517,7 +517,7 @@ $ docker compose up -d
 
 # 4. wait for /ready (loader downloads ~210k places, ~1.5M postal codes)
 $ curl http://localhost:4000/ready
-$ curl http://localhost:4000/api/v1/search -G --data-urlencode 'q=berlin'`;
+$ curl http://localhost:4000/v1/search -G --data-urlencode 'q=berlin'`;
 
 // ─── shared section label ────────────────────────────────────────────────
 
@@ -655,7 +655,7 @@ export default ssr(async (c) => {
               <p class="text-sm text-[var(--color-bone-dim)] leading-relaxed">
                 If you redistribute results, keep the credit lines from{" "}
                 <a href="#endpoint-attribution" class="coord-tide hover:underline">
-                  /api/v1/attribution
+                  /v1/attribution
                 </a>{" "}
                 intact.
               </p>
@@ -675,17 +675,17 @@ export default ssr(async (c) => {
         <section class="mb-20 md:mb-28">
           <SectionLabel
             label="API reference"
-            coord="11 routes · prefix /api/v1"
+            coord="11 routes · prefix /v1"
             icon="ti-api"
           />
 
           <p class="text-sm text-[var(--color-bone-dim)] leading-relaxed mb-3 max-w-2xl">
             <code class="code-inline">/health</code> and{" "}
             <code class="code-inline">/ready</code> are mounted at the API
-            root (not under <code class="code-inline">/api/v1</code>) so
+            root (not under <code class="code-inline">/v1</code>) so
             probes bypass auth and rate limiting. The OpenAPI spec is at{" "}
-            <code class="code-inline">/api/v1/openapi.json</code>; Scalar
-            UI at <code class="code-inline">/api/v1/docs</code>.
+            <code class="code-inline">/v1/openapi.json</code>; Scalar
+            UI at <code class="code-inline">/v1/docs</code>.
           </p>
 
           <div class="flex items-baseline justify-between flex-wrap gap-4 mb-8">
@@ -737,7 +737,7 @@ export default ssr(async (c) => {
             </div>
             <dl class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-x-6 gap-y-3 text-sm">
               {[
-                ["API_KEY", "If set, bearer-auth is enforced on /api/v1/*. /health and /ready stay open."],
+                ["API_KEY", "If set, bearer-auth is enforced on /v1/*. /health and /ready stay open."],
                 ["RATELIMIT_PER_MINUTE", "Per-IP sliding-window rate limit. Default 60."],
                 ["TRUSTED_PROXY_HOPS", "Number of X-Forwarded-For hops to trust. 0 for direct, 1 behind a single reverse proxy."],
                 ["OPENADDRESSES_URL", "Required. URL of an OpenAddresses bundle ZIP."],
@@ -761,7 +761,7 @@ export default ssr(async (c) => {
             </div>
             <ul class="space-y-3 text-sm text-[var(--color-bone-dim)] leading-relaxed">
               {[
-                ["Bearer auth", "Set API_KEY. The /api/v1/* routes will require Authorization: Bearer <key>; /health and /ready stay public for probes."],
+                ["Bearer auth", "Set API_KEY. The /v1/* routes will require Authorization: Bearer <key>; /health and /ready stay public for probes."],
                 ["Rate limit", "Default is 60/min/IP. Bump RATELIMIT_PER_MINUTE for trusted internal traffic, drop it for public exposure."],
                 ["Reverse proxy", "Behind Traefik or nginx, set TRUSTED_PROXY_HOPS=1 so the rate limiter sees the real client IP via X-Forwarded-For."],
                 ["TLS", "Terminate at the proxy. The container speaks plain HTTP on its internal port."],

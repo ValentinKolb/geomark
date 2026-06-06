@@ -28,10 +28,10 @@ afterAll(async () => {
   await db.stop();
 });
 
-describe("/api/v1/* with API_KEY configured", () => {
+describe("/v1/* with API_KEY configured", () => {
   test("missing Authorization header → 401 with ErrorSchema body", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/coverage");
+    const r = await req("/v1/coverage");
     expect(r.status).toBe(401);
     const j = (await r.json()) as { error: string; code: string };
     expect(j.code).toBe("UNAUTHORIZED");
@@ -40,7 +40,7 @@ describe("/api/v1/* with API_KEY configured", () => {
 
   test("malformed Authorization header → 400 ErrorSchema body", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/coverage", {
+    const r = await req("/v1/coverage", {
       headers: { Authorization: "NotBearer xyz" },
     });
     expect(r.status).toBe(400);
@@ -50,7 +50,7 @@ describe("/api/v1/* with API_KEY configured", () => {
 
   test("invalid Bearer token → 401 ErrorSchema body", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/coverage", {
+    const r = await req("/v1/coverage", {
       headers: { Authorization: "Bearer wrong-token" },
     });
     expect(r.status).toBe(401);
@@ -61,7 +61,7 @@ describe("/api/v1/* with API_KEY configured", () => {
 
   test("valid Bearer token → 200 success", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/coverage", {
+    const r = await req("/v1/coverage", {
       headers: { Authorization: "Bearer test-secret-token" },
     });
     expect(r.status).toBe(200);
@@ -75,7 +75,7 @@ describe("/api/v1/* with API_KEY configured", () => {
     // rateLimit. Since rateLimit runs FIRST, requests 61-65 must 429.
     let throttled = 0;
     for (let i = 0; i < 65; i++) {
-      const r = await req("/api/v1/coverage", {
+      const r = await req("/v1/coverage", {
         headers: { "X-Forwarded-For": "203.0.113.7" },
       });
       if (r.status === 429) throttled++;
@@ -95,9 +95,9 @@ describe("/api/v1/* with API_KEY configured", () => {
     expect(r.status).toBe(200);
   });
 
-  test("/api/v1/openapi.json stays public", async () => {
+  test("/v1/openapi.json stays public", async () => {
     resetRateLimit();
-    const r = await req("/api/v1/openapi.json");
+    const r = await req("/v1/openapi.json");
     expect(r.status).toBe(200);
   });
 });

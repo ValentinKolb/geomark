@@ -11,8 +11,8 @@ describe("metrics registry", () => {
     const m = createRegistry({ version: "1.2.3", commit: "abcdef" });
     // touch a counter so it appears in the scrape (prom-client only emits
     // counters with at least one observation when they're labelled).
-    m.http.requests.labels({ route: "/api/v1/search", status_class: "2xx" }).inc();
-    m.http.duration.labels({ route: "/api/v1/search" }).observe(0.012);
+    m.http.requests.labels({ route: "/v1/search", status_class: "2xx" }).inc();
+    m.http.duration.labels({ route: "/v1/search" }).observe(0.012);
     m.dataset.places.set(33676);
     m.dataset.versionInfo.labels({ version: "2026-05-13" }).set(1);
 
@@ -34,7 +34,7 @@ describe("metrics registry", () => {
     expect(body).toContain('geomark_build_info{version="1.2.3",commit="abcdef"} 1');
     expect(body).toContain('geomark_places_total 33676');
     expect(body).toContain(
-      'geomark_http_requests_total{route="/api/v1/search",status_class="2xx"} 1',
+      'geomark_http_requests_total{route="/v1/search",status_class="2xx"} 1',
     );
   });
 
@@ -70,34 +70,34 @@ describe("metrics middleware", () => {
   const buildApp = () => {
     const m = createRegistry();
     const app = new Hono();
-    app.use("/api/v1/*", metricsMiddleware(m));
+    app.use("/v1/*", metricsMiddleware(m));
     const v1 = new Hono()
       .get("/search", (c) => c.json({ ok: true }))
       .get("/place/:gid", (c) => c.json({ gid: c.req.param("gid") }))
       .get("/boom", () => {
         throw new Error("kaboom");
       });
-    app.route("/api/v1", v1);
+    app.route("/v1", v1);
     app.onError((_err, c) => c.json({ error: "internal" }, 500));
     return { app, m };
   };
 
   test("records request_total + duration with route template label", async () => {
     const { app, m } = buildApp();
-    await app.request("/api/v1/search?q=berlin");
-    await app.request("/api/v1/search?q=munich");
-    await app.request("/api/v1/place/G123");
+    await app.request("/v1/search?q=berlin");
+    await app.request("/v1/search?q=munich");
+    await app.request("/v1/place/G123");
 
     const body = await m.registry.metrics();
     expect(body).toContain(
-      'geomark_http_requests_total{route="/api/v1/search",status_class="2xx"} 2',
+      'geomark_http_requests_total{route="/v1/search",status_class="2xx"} 2',
     );
     // Hono's :gid → OpenAPI-style {gid} normalization
     expect(body).toContain(
-      'geomark_http_requests_total{route="/api/v1/place/{gid}",status_class="2xx"} 1',
+      'geomark_http_requests_total{route="/v1/place/{gid}",status_class="2xx"} 1',
     );
     expect(body).toMatch(
-      /geomark_http_request_duration_seconds_count\{route="\/api\/v1\/search"\} 2/,
+      /geomark_http_request_duration_seconds_count\{route="\/v1\/search"\} 2/,
     );
   });
 
@@ -105,11 +105,11 @@ describe("metrics middleware", () => {
     const { app, m } = buildApp();
     const before = await m.http.inFlight.get();
     expect(before.values[0]?.value).toBe(0);
-    const res = await app.request("/api/v1/boom");
+    const res = await app.request("/v1/boom");
     expect(res.status).toBe(500);
     const body = await m.registry.metrics();
     expect(body).toContain(
-      'geomark_http_requests_total{route="/api/v1/boom",status_class="5xx"} 1',
+      'geomark_http_requests_total{route="/v1/boom",status_class="5xx"} 1',
     );
     expect(body).toContain("geomark_http_in_flight 0");
   });
@@ -117,16 +117,16 @@ describe("metrics middleware", () => {
   test("infers rate-limit + auth rejection reasons from status + headers", async () => {
     const m = createRegistry();
     const app = new Hono();
-    app.use("/api/v1/*", metricsMiddleware(m));
-    app.get("/api/v1/throttled", (c) => c.json({ error: "limit" }, 429));
-    app.get("/api/v1/protected", (c) => c.json({ error: "unauth" }, 401));
+    app.use("/v1/*", metricsMiddleware(m));
+    app.get("/v1/throttled", (c) => c.json({ error: "limit" }, 429));
+    app.get("/v1/protected", (c) => c.json({ error: "unauth" }, 401));
 
-    await app.request("/api/v1/throttled");
-    await app.request("/api/v1/protected"); // no Authorization → reason=missing
-    await app.request("/api/v1/protected", {
+    await app.request("/v1/throttled");
+    await app.request("/v1/protected"); // no Authorization → reason=missing
+    await app.request("/v1/protected", {
       headers: { Authorization: "Basic deadbeef" },
     }); // malformed (not Bearer)
-    await app.request("/api/v1/protected", {
+    await app.request("/v1/protected", {
       headers: { Authorization: "Bearer wrong" },
     }); // invalid
 
