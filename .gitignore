@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+data/
+
+# Generated SSR client chunks (rebuilt on every server start)
+packages/web/_ssr/
+
+# Tool caches + session state
+.fallow/
+.dex/
+.claude/

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignorePatterns": [
+    "**/_ssr/**",
+    "**/dist/**",
+    "**/node_modules/**"
+  ],
+  "entry": [
+    "packages/api/scripts/*.ts",
+    "packages/api/tests/**/*.ts",
+    "packages/data/src/server.ts",
+    "packages/web/scripts/*.ts",
+    "packages/web/src/components/*.island.tsx"
+  ],
+  "ignoreDependencies": [
+    "concurrently",
+    "tailwindcss",
+    "@tailwindcss/cli",
+    "hono"
+  ],
+  "rules": {
+    "duplicate-exports": "off"
+  }
+}

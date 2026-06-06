@@ -1,0 +1,79 @@
+services:
+  db:
+    # Bundles PostgreSQL 17 + PostGIS + pg_trgm + pg_textsearch + unaccent.
+    image: timescale/timescaledb-ha:pg17-all
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geomark}
+      POSTGRES_USER: ${POSTGRES_USER:-geomark}
+      POSTGRES_DB: ${POSTGRES_DB:-geomark}
+    # Postgres parallel workers + GIN/BM25 builds use POSIX shared memory.
+    # Docker's default /dev/shm is 64MB which the bulk-INSERT path of
+    # ingestAll() exhausts on real-world postal_codes (~1.8M rows).
+    shm_size: 512m
+    volumes:
+      - geomark-db:/home/postgres/pgdata
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-geomark}", "-d", "${POSTGRES_DB:-geomark}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  data:
+    build:
+      context: .
+      dockerfile: packages/data/Dockerfile
+    environment:
+      OPENADDRESSES_URL: ${OPENADDRESSES_URL}
+      REFRESH_INTERVAL_DAYS: ${REFRESH_INTERVAL_DAYS:-30}
+      OUTPUT_DIR: /data
+      # Optional source overrides — defaults (cities500 + allCountries +
+      # countryInfo) are set in packages/data/src/config.ts. The
+      # integration test points these at smaller files for speed.
+      GEONAMES_CITIES_URL: ${GEONAMES_CITIES_URL:-}
+      GEONAMES_POSTAL_URL: ${GEONAMES_POSTAL_URL:-}
+      GEONAMES_COUNTRY_INFO_URL: ${GEONAMES_COUNTRY_INFO_URL:-}
+      # Optional. When set, the data builder ingests GeoNames alternateNamesV2
+      # and emits an aliases.csv.zst artefact. The API picks it up automatically.
+      GEONAMES_ALIASES_URL: ${GEONAMES_ALIASES_URL:-}
+    ports:
+      - "${DATA_HOST_PORT:-4002}:3000"
+    volumes:
+      - geomark-data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-geomark}:${POSTGRES_PASSWORD:-geomark}@db:5432/${POSTGRES_DB:-geomark}
+      DATA_URL: ${DATA_URL:-http://data:3000}
+      API_KEY: ${API_KEY:-}
+      RATELIMIT_PER_MINUTE: ${RATELIMIT_PER_MINUTE:-60}
+      REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-6}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      METRICS_PATH: ${METRICS_PATH:-/metrics}
+    ports:
+      - "${API_HOST_PORT:-4000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      data:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    environment:
+      API_URL: ${API_URL:-http://api:3000}
+    ports:
+      - "${WEB_HOST_PORT:-4001}:3000"
+    depends_on:
+      - api
+
+volumes:
+  geomark-db:
+  geomark-data:

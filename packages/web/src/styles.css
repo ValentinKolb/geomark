@@ -1,0 +1,412 @@
+/*
+ * geomark.dev — visual system
+ * dark only · topographic data atlas
+ */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Geist+Mono:wght@300..600&display=swap");
+
+@import "tailwindcss";
+@import "@tabler/icons-webfont/dist/tabler-icons.css";
+
+/* tell Tailwind v4 explicitly where to scan for class names — covers
+   src/, top-level config.ts, and anything else in the package. */
+@source "../**/*.{ts,tsx,html}";
+
+/* ─── design tokens ─────────────────────────────────────────────────────── */
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  /* Body and UI both render in Geist Mono — the entire site speaks the
+     same technical voice, only the display headline breaks out into
+     Fraunces for editorial moments. */
+  --font-sans: "Geist Mono", ui-monospace, "SF Mono", monospace;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  --color-ink: #07090c;
+  --color-ink-rise: #0c1015;
+  --color-surface: #11161d;
+  --color-surface-2: #161c25;
+  --color-line: rgba(235, 231, 221, 0.07);
+  --color-line-strong: rgba(235, 231, 221, 0.16);
+  --color-bone: #ebe7dd;
+  --color-bone-dim: #898d96;
+  /* Bumped from #4a4e57 (2.39:1) to #6b6e78 (3.92:1) so tertiary text
+     clears WCAG AA Large on the #07090c page background. Still feels
+     subdued vs. --color-bone-dim (5.99:1) and the primary --color-bone. */
+  --color-bone-fade: #6b6e78;
+  --color-marker: #ff8a3d;
+  --color-marker-glow: rgba(255, 138, 61, 0.22);
+  --color-tide: #6fe3d5;
+}
+
+/* ─── baseline ──────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark only;
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-marker);
+  color: var(--color-ink);
+}
+
+/* ─── crosshair cursor (registration mark) ──────────────────────────────── */
+body {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><circle cx='14' cy='14' r='9' fill='none' stroke='%23FF8A3D' stroke-width='1' opacity='0.9'/><circle cx='14' cy='14' r='1.4' fill='%23FF8A3D'/><line x1='14' y1='0' x2='14' y2='6' stroke='%23FF8A3D' stroke-width='1'/><line x1='14' y1='22' x2='14' y2='28' stroke='%23FF8A3D' stroke-width='1'/><line x1='0' y1='14' x2='6' y2='14' stroke='%23FF8A3D' stroke-width='1'/><line x1='22' y1='14' x2='28' y2='14' stroke='%23FF8A3D' stroke-width='1'/></svg>")
+      14 14,
+    crosshair;
+}
+input,
+textarea {
+  cursor: text;
+}
+button,
+a {
+  cursor: pointer;
+}
+
+/* ─── grid layer (graticule, like a chart) ──────────────────────────────── */
+.bg-graticule {
+  background-image:
+    linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+  background-size: 96px 96px;
+}
+
+.bg-graticule-dense {
+  background-image:
+    linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ─── film grain for atmospheric depth ──────────────────────────────────── */
+.bg-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+/* ─── animations ────────────────────────────────────────────────────────── */
+@keyframes drift {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -1200; }
+}
+@keyframes drift-rev {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 1200; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+@keyframes ticker {
+  0%,   13%  { transform: translateY(0%); }
+  14%,  27%  { transform: translateY(-100%); }
+  28%,  41%  { transform: translateY(-200%); }
+  42%,  55%  { transform: translateY(-300%); }
+  56%,  69%  { transform: translateY(-400%); }
+  70%,  83%  { transform: translateY(-500%); }
+  84%, 100%  { transform: translateY(-600%); }
+}
+@keyframes pulse-dot {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  50%  { transform: scale(1.6); opacity: 0.4; }
+  100% { transform: scale(1);   opacity: 0.9; }
+}
+
+.topo-path {
+  stroke-dasharray: 4 12;
+  animation: drift 28s linear infinite;
+}
+.topo-path-rev {
+  stroke-dasharray: 4 12;
+  animation: drift-rev 36s linear infinite;
+}
+.compass-spin {
+  animation: spin-slow 90s linear infinite;
+  transform-origin: center;
+}
+.beacon {
+  animation: blink 2.4s ease-in-out infinite;
+}
+.coord-ticker {
+  animation: ticker 21s steps(1, end) infinite;
+}
+.pulse-dot {
+  animation: pulse-dot 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Live world map — each dot persists across refreshes and tweens its
+   geometry to the new sample. Browser-native CSS transition on SVG
+   attributes; runs on the compositor. */
+circle.live-dot {
+  transition:
+    cx 1700ms cubic-bezier(0.65, 0, 0.35, 1),
+    cy 1700ms cubic-bezier(0.65, 0, 0.35, 1),
+    r 1700ms cubic-bezier(0.65, 0, 0.35, 1),
+    fill 1700ms cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 1700ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Docs language toggle — the parent gets `lang-curl` or `lang-ts` and
+   the inactive snippet hides. SSR-friendly: both snippets are present
+   in the HTML, only one is visible. */
+[data-lang-root].lang-curl [data-lang="ts"]   { display: none; }
+[data-lang-root].lang-ts   [data-lang="curl"] { display: none; }
+
+/* ─── typography helpers ────────────────────────────────────────────────── */
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  font-weight: 400;
+}
+.display-italic {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 80, "WONK" 1;
+}
+.mono-cap {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  color: var(--color-bone-dim);
+  font-weight: 400;
+}
+.mono-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--color-bone-dim);
+}
+
+.marker-glow {
+  text-shadow: 0 0 24px var(--color-marker-glow);
+}
+
+/* hover rule used on swatch / component cards */
+.rule {
+  position: relative;
+}
+.rule::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  transition: border-color 0.18s ease;
+  pointer-events: none;
+}
+.rule:hover::after {
+  border-color: var(--color-line-strong);
+}
+
+/* ─── component layer — used everywhere on the site ─────────────────────── */
+@layer components {
+
+  /* containers */
+  .panel {
+    position: relative;
+    border: 1px solid var(--color-line);
+    background: color-mix(in srgb, var(--color-ink-rise) 50%, transparent);
+    padding: 1.25rem;
+  }
+  @media (min-width: 768px) { .panel { padding: 2rem; } }
+
+  .panel-tight { padding: 1rem; }
+  @media (min-width: 768px) { .panel-tight { padding: 1.5rem; } }
+
+  /* a divider that combines top-rule + label slot */
+  .section-divider {
+    border-top: 1px solid var(--color-line);
+    padding-top: 1.5rem;
+    margin-bottom: 3rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  /* coordinate / mono text */
+  .coord {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--color-bone-dim);
+  }
+  .coord-marker { color: var(--color-marker); }
+  .coord-tide   { color: var(--color-tide); }
+  .coord-bone   { color: var(--color-bone); }
+
+  /* buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    transition: background 0.18s, color 0.18s, border-color 0.18s;
+    border: 1px solid transparent;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .btn-primary {
+    background: var(--color-marker);
+    color: var(--color-ink);
+  }
+  .btn-primary:hover { background: var(--color-bone); }
+
+  .btn-ghost {
+    border-color: var(--color-line-strong);
+    color: var(--color-bone);
+  }
+  .btn-ghost:hover { border-color: var(--color-bone); }
+
+  .btn-link {
+    padding: 0.5rem 0.75rem;
+    color: var(--color-bone-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.7rem;
+  }
+  .btn-link:hover { color: var(--color-bone); }
+
+  /* chips — small filter / example pills */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--color-line);
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-bone-dim);
+    transition: color 0.18s, border-color 0.18s;
+    cursor: pointer;
+  }
+  .chip:hover {
+    color: var(--color-marker);
+    border-color: var(--color-marker);
+  }
+  .chip-active {
+    color: var(--color-marker);
+    border-color: var(--color-marker);
+  }
+
+  /* input field */
+  .input-field {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-bone);
+    font-family: var(--font-mono);
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    transition: border-color 0.18s ease;
+  }
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-marker);
+  }
+  .input-field::placeholder {
+    color: var(--color-bone-fade);
+    font-style: italic;
+  }
+
+  /* code blocks */
+  .code-block {
+    background: var(--color-ink);
+    border: 1px solid var(--color-line);
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+  .code-inline {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--color-tide);
+    background: color-mix(in srgb, var(--color-tide) 10%, transparent);
+    padding: 0.05em 0.35em;
+  }
+
+  /* keyboard hint badge */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.45rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--color-bone-dim);
+    border: 1px solid var(--color-line);
+    line-height: 1.5;
+  }
+
+  /* blinking marker dot */
+  .beacon-dot {
+    display: inline-block;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background: var(--color-marker);
+    animation: blink 2.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  /* result row (search hits, postal items, etc.) */
+  .result-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.875rem 1.125rem;
+    background: var(--color-ink);
+    transition: background 0.18s;
+  }
+  .result-row:hover { background: var(--color-ink-rise); }
+
+  /* utility: a thin animated loader bar */
+  .loader-bar {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--color-marker) 50%,
+      transparent 100%
+    );
+    background-size: 50% 100%;
+    background-repeat: no-repeat;
+    animation: loader-slide 1.4s linear infinite;
+  }
+}
+
+@keyframes loader-slide {
+  0%   { background-position: -50% 0; }
+  100% { background-position: 150% 0; }
+}
