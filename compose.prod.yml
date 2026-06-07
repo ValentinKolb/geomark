@@ -1,0 +1,149 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Geomark production compose — three Traefik-routed subdomains, one stack.
+#
+# Routing layout:
+#   geomark.dev          → web      (catch-all, marketing + docs pages)
+#   api.geomark.dev      → api      (/v1/* + /health, /ready, /metrics)
+#   data.geomark.dev     → data     (/v1/* + /health, /metrics)
+#
+# Assumptions:
+#   * A Traefik v2/v3 instance is ALREADY running on this host with a
+#     docker provider, an `acme` cert resolver, and a `websecure` entry
+#     point. Geomark services join its external network (default name:
+#     "traefik"). This file does NOT spin up Traefik itself.
+#   * Wildcard DNS or three explicit A records point at the host. With
+#     TLS-ALPN-01 challenges, only :443 needs to be open on Traefik.
+#
+# Required env:
+#   OPENADDRESSES_URL       URL of an OpenAddresses bundle ZIP. Hard fail
+#                           if unset (no sensible default).
+#
+# Optional env (sensible defaults inline; override via shell-export):
+#   DOMAIN                  default "geomark.dev"
+#   POSTGRES_PASSWORD       default "CHANGE-ME"  ← rotate before exposing!
+#   API_KEY                 gate the public API (default: open)
+#   METRICS_TOKEN           gate /metrics on both api + data (default: open)
+#   TRAEFIK_NETWORK         name of the external Traefik network (default "traefik")
+#   TRAEFIK_CERT_RESOLVER   name of the Traefik acme cert resolver (default "le")
+#   GEONAMES_*_URL          override the GeoNames source defaults
+#
+# Run:   docker compose -f compose.prod.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Shared env blocks (YAML merge keys) ─────────────────────────────────────
+
+x-postgres-creds: &postgres-creds
+  POSTGRES_USER: geomark
+  POSTGRES_DB: geomark
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE-ME}
+
+x-data-sources: &data-sources
+  OPENADDRESSES_URL: ${OPENADDRESSES_URL:?Set OPENADDRESSES_URL to a bundle ZIP URL}
+  GEONAMES_CITIES_URL: ${GEONAMES_CITIES_URL:-https://download.geonames.org/export/dump/cities500.zip}
+  GEONAMES_POSTAL_URL: ${GEONAMES_POSTAL_URL:-https://download.geonames.org/export/zip/allCountries.zip}
+  GEONAMES_COUNTRY_INFO_URL: ${GEONAMES_COUNTRY_INFO_URL:-https://download.geonames.org/export/dump/countryInfo.txt}
+  GEONAMES_ALIASES_URL: ${GEONAMES_ALIASES_URL:-https://download.geonames.org/export/dump/alternateNamesV2.zip}
+
+x-metrics-config: &metrics-config
+  METRICS_ENABLED: ${METRICS_ENABLED:-true}
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
+  METRICS_PATH: /metrics
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+  internal:
+    driver: bridge
+
+# ─── Services ────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17-all
+    environment:
+      <<: *postgres-creds
+    shm_size: 512m
+    volumes:
+      - geomark-db:/home/postgres/pgdata
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "geomark", "-d", "geomark"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  data:
+    build:
+      context: .
+      dockerfile: packages/data/Dockerfile
+    environment:
+      <<: [*data-sources, *metrics-config]
+      OUTPUT_DIR: /data
+      REFRESH_INTERVAL_DAYS: ${REFRESH_INTERVAL_DAYS:-30}
+    volumes:
+      - geomark-data:/data
+    networks: [internal, traefik]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.geomark-data.rule=Host(`data.${DOMAIN:-geomark.dev}`)
+      - traefik.http.routers.geomark-data.entrypoints=websecure
+      - traefik.http.routers.geomark-data.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      - traefik.http.services.geomark-data.loadbalancer.server.port=3000
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    environment:
+      <<: *metrics-config
+      DATABASE_URL: postgres://geomark:${POSTGRES_PASSWORD:-CHANGE-ME}@db:5432/geomark
+      DATA_URL: http://data:3000/v1
+      API_KEY: ${API_KEY:-}
+      RATELIMIT_PER_MINUTE: ${RATELIMIT_PER_MINUTE:-60}
+      REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-6}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+    networks: [internal, traefik]
+    depends_on:
+      db:
+        condition: service_healthy
+      data:
+        condition: service_started
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.geomark-api.rule=Host(`api.${DOMAIN:-geomark.dev}`)
+      - traefik.http.routers.geomark-api.entrypoints=websecure
+      - traefik.http.routers.geomark-api.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      - traefik.http.services.geomark-api.loadbalancer.server.port=3000
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    environment:
+      # Web's API_URL is the *external* api host because the client-side
+      # showcase + LiveWorldMap fetch from the browser, not from web's
+      # server-side context. SSR-side fetches still work because Hono
+      # follows the same URL.
+      API_URL: ${API_URL:-https://api.${DOMAIN:-geomark.dev}}
+      DATA_URL: ${DATA_URL:-https://data.${DOMAIN:-geomark.dev}/v1}
+      DATA_PUBLIC_URL: ${DATA_PUBLIC_URL:-https://data.${DOMAIN:-geomark.dev}/v1}
+    networks: [internal, traefik]
+    depends_on:
+      - api
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.geomark-web.rule=Host(`${DOMAIN:-geomark.dev}`)
+      - traefik.http.routers.geomark-web.entrypoints=websecure
+      - traefik.http.routers.geomark-web.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      - traefik.http.services.geomark-web.loadbalancer.server.port=3000
+
+volumes:
+  geomark-db:
+  geomark-data:
