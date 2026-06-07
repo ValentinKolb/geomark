@@ -33,7 +33,10 @@ const requireUrl = (key: string, value: string): string => {
 
 export const config = {
   databaseUrl: required("DATABASE_URL"),
-  dataUrl: requireUrl("DATA_URL", process.env.DATA_URL ?? "http://data:3000"),
+  dataUrl: requireUrl(
+    "DATA_URL",
+    process.env.DATA_URL ?? "http://data:3000/v1",
+  ),
   apiKey: process.env.API_KEY,
   ratelimitPerMinute: requirePositiveInt(
     "RATELIMIT_PER_MINUTE",

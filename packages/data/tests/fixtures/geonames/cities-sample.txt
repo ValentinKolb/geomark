@@ -1,0 +1,5 @@
+2950159	Berlin	Berlin	Berlim,Berlín,Berlino	52.52437	13.41053	P	PPLC	DE		16	00			3426354	74	74	Europe/Berlin	2024-01-01
+5128581	New York City	New York City	NY,The Big Apple	40.71427	-74.00597	P	PPL	US		NY	061			8175133	57	10	America/New_York	2024-01-01
+2988507	Paris	Paris	Lutetia,Paname	48.85341	2.3488	P	PPLC	FR		11	75			2138551	35	42	Europe/Paris	2024-01-01
+2643743	London	London	Londres,Londra	51.50853	-0.12574	P	PPLC	GB		ENG	GLA			8961989	25	25	Europe/London	2024-01-01
+1850147	Tokyo	Tokyo		35.6895	139.69171	P	PPLC	JP		40				13929286	44	0	Asia/Tokyo	2024-01-01

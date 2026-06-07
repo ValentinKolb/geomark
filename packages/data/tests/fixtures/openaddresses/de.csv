@@ -1,0 +1,4 @@
+HASH,LON,LAT,NUMBER,STREET,UNIT,CITY,DISTRICT,REGION,POSTCODE
+abc1,13.41053,52.52437,12,Müllerstraße,,Berlin,Mitte,Berlin,10115
+abc2,13.42000,52.51000,5,"Friedrichstraße, Süd",,Berlin,Mitte,Berlin,10117
+abc3,11.57500,48.13700,7a,Marienplatz,,München,,Bayern,80331

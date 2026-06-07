@@ -1,0 +1,5 @@
+DE	10115	Berlin	Berlin	BE	Berlin	BE	Mitte		52.5311	13.3856	4
+DE	10117	Berlin	Berlin	BE	Berlin	BE	Mitte		52.516667	13.4	4
+US	10001	New York, NY	New York	NY	New York	061			40.7484	-73.9967	4
+GB	SW1A 1AA	London	England	ENG	Greater London	GLA			51.501	-0.1416	6
+FR	75001	Paris	Île-de-France	11	Paris	75			48.8566	2.3522	4

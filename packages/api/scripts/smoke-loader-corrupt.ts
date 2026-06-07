@@ -54,7 +54,7 @@ const main = async (): Promise<void> => {
 
   let advertisedPlacesSha = placesSha;
   const app = new Hono();
-  app.get("/latest.json", (c) =>
+  app.get("/v1/latest.json", (c) =>
     c.json({
       built_at: new Date().toISOString(),
       version: "v1",
@@ -79,13 +79,13 @@ const main = async (): Promise<void> => {
     "postal_codes.csv.zst": postal,
     "countries.csv.zst": countries,
   };
-  app.get("/:filename", (c) => {
+  app.get("/v1/:filename", (c) => {
     const b = files[c.req.param("filename")];
     if (!b) return c.json({ error: "nf" }, 404);
     return new Response(b as BodyInit, { headers: { "Content-Type": "application/zstd" } });
   });
   const server = Bun.serve({ port: PORT, fetch: app.fetch });
-  const baseUrl = `http://localhost:${PORT}`;
+  const baseUrl = `http://localhost:${PORT}/v1`;
 
   try {
     console.log("==> first ingest with correct SHAs");

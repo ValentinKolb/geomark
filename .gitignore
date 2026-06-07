@@ -5,7 +5,8 @@ dist/
 !.env.example
 *.log
 .DS_Store
-data/
+# Root-anchored — match the host data-volume mount, not packages/data
+/data/
 
 # Generated SSR client chunks (rebuilt on every server start)
 packages/web/_ssr/

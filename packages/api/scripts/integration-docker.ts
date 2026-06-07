@@ -549,8 +549,9 @@ const main = async (): Promise<void> => {
     POSTGRES_USER: "geomark",
     POSTGRES_PASSWORD: "geomark",
     POSTGRES_DB: "geomark",
-    // API talks to data via service DNS; not the host port.
-    DATA_URL: "http://data:3000",
+    // API talks to data via service DNS; not the host port. The /v1
+    // prefix is the data builder's manifest-schema namespace.
+    DATA_URL: "http://data:3000/v1",
     // Use high ports to avoid colliding with the user's other services.
     API_HOST_PORT: String(API_HOST_PORT),
     DATA_HOST_PORT: String(DATA_HOST_PORT),

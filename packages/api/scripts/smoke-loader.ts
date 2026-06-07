@@ -166,8 +166,8 @@ const startMockServer = async () => {
   };
 
   const app = new Hono();
-  app.get("/latest.json", (c) => c.json(manifest));
-  app.get("/:filename", (c) => {
+  app.get("/v1/latest.json", (c) => c.json(manifest));
+  app.get("/v1/:filename", (c) => {
     const name = c.req.param("filename");
     const bytes = files[name];
     if (!bytes) return c.json({ error: "not found" }, 404);

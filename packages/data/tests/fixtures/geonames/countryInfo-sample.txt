@@ -1,0 +1,6 @@
+# GeoNames.org Country Information
+# this is a sample header
+#ISO	ISO3	ISO-Numeric	fips	Country	Capital	Area	Population	Continent	tld	CurrencyCode	CurrencyName	Phone	Postal Format	Postal Regex	Languages	geonameid	neighbours	EquivalentFipsCode
+DE	DEU	276	GM	Germany	Berlin	357021	81802257	EU	.de	EUR	Euro	49	#####	^(\d{5})$	de,en	2921044	CH,PL,NL,DK,BE,CZ,LU,FR,AT
+US	USA	840	US	United States	Washington	9629091	310232863	NA	.us	USD	Dollar	1	#####-####		en-US,es-US,haw,fr	6252001	CA,MX,CU
+FR	FRA	250	FR	France	Paris	547030	64768389	EU	.fr	EUR	Euro	33	#####	^(\d{5})$	fr-FR,frp,br,co,ca,eu,oc	3017382	BE,DE,IT,LU,CH,ES,AD,MC

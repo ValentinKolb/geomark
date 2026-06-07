@@ -47,7 +47,7 @@ services:
       dockerfile: packages/api/Dockerfile
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-geomark}:${POSTGRES_PASSWORD:-geomark}@db:5432/${POSTGRES_DB:-geomark}
-      DATA_URL: ${DATA_URL:-http://data:3000}
+      DATA_URL: ${DATA_URL:-http://data:3000/v1}
       API_KEY: ${API_KEY:-}
       RATELIMIT_PER_MINUTE: ${RATELIMIT_PER_MINUTE:-60}
       REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-6}

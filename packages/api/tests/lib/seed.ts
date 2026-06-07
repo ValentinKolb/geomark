@@ -103,15 +103,17 @@ export const startMockDataServer = async (
   };
 
   const app = new Hono();
-  app.get("/latest.json", (c) => c.json(manifest));
-  app.get("/:filename", (c) => {
+  // The mock mirrors the production data server: bundles are versioned
+  // under /v1, ops endpoints (none here) stay at root.
+  app.get("/v1/latest.json", (c) => c.json(manifest));
+  app.get("/v1/:filename", (c) => {
     const b = files[c.req.param("filename")];
     if (!b) return c.json({ error: "nf" }, 404);
     return new Response(b as BodyInit, { headers: { "Content-Type": "application/zstd" } });
   });
   // Random free port
   const server = Bun.serve({ port: 0, fetch: app.fetch });
-  const baseUrl = `http://localhost:${server.port}`;
+  const baseUrl = `http://localhost:${server.port}/v1`;
 
   // Re-fetch through the actual loader path so we exercise the same code
   // paths and get the validated Manifest type.

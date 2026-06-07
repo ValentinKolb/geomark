@@ -28,6 +28,7 @@
       "dependencies": {
         "@geomark/shared": "workspace:*",
         "hono": "^4.11.7",
+        "prom-client": "^15.1.3",
       },
     },
     "packages/shared": {
