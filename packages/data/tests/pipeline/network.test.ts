@@ -50,7 +50,7 @@ beforeEach(async () => {
   ]);
   await zipFromFiles(postalZip, [
     {
-      name: "allCountries.txt",
+      name: "postal-test.txt",
       sourcePath: join(FIXTURES, "geonames", "postal-sample.txt"),
     },
   ]);
@@ -133,7 +133,7 @@ describe("pipeline network integration (all sources mocked locally)", () => {
       geonamesCountryInfoUrl: `${baseUrl}/countryInfo.txt`,
       openaddressesUrl: `${baseUrl}/oa-test.zip`,
       citiesFilename: "cities-test.txt",
-        postalFilename: "postal-test.txt",
+      postalFilename: "postal-test.txt",
     };
     const ctx = { stagingDir, outputDir, log: () => {} };
 

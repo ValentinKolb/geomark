@@ -54,8 +54,19 @@ fi
 echo "==> /health responded:"
 curl -s "http://localhost:${PORT}/health"
 echo ""
-echo "==> /latest.json (expected 404 before first build):"
-curl -s -w "HTTP %{http_code}\n" "http://localhost:${PORT}/latest.json"
+echo "==> /v1/latest.json (expected 404 before first build):"
+latest_body="$(mktemp)"
+latest_code="$(curl -s -o "$latest_body" -w "%{http_code}" "http://localhost:${PORT}/v1/latest.json" || true)"
+cat "$latest_body"
+rm -f "$latest_body"
+echo "HTTP ${latest_code}"
+
+if [ "$latest_code" != "404" ]; then
+  echo "FAIL: /v1/latest.json returned HTTP ${latest_code}, expected 404 before first build"
+  echo "==== container logs ===="
+  docker logs "$APP_NAME" 2>&1 | tail -20
+  exit 1
+fi
 
 echo ""
 echo "OK"

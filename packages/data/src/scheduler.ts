@@ -14,8 +14,9 @@ import type { DataMetricsRegistry } from "./metrics/registry";
  * Trade-off vs cron: a long-running container that drifts will not fire
  * "exactly at 03:00 on the 1st"; it'll fire roughly every refresh interval
  * from the previous build. For monthly refresh of static-ish data, that's
- * close enough. If you want exact-time scheduling, run with `BUILD_ONCE=true`
- * and drive the container from the host's cron (or a Kubernetes CronJob).
+ * close enough. If you want exact-time scheduling, run with `BUILD_ONCE=1`
+ * (or `BUILD_ONCE=true`) and drive the container from the host's cron
+ * (or a Kubernetes CronJob).
  */
 
 const ONE_HOUR_MS = 60 * 60 * 1000;

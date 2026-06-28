@@ -131,13 +131,13 @@ const main = async (): Promise<void> => {
   }
   if (!healthOk) throw new Error("/health did not come up within 30s");
 
-  // 2) Wait for the actual build to finish — manifest appears via /latest.json
-  console.log("==> Waiting for build to finish (polling /latest.json)…");
+  // 2) Wait for the actual build to finish — manifest appears via /v1/latest.json
+  console.log("==> Waiting for build to finish (polling /v1/latest.json)…");
   let manifest: any = null;
   const deadline = Date.now() + 5 * 60 * 1000;
   while (Date.now() < deadline) {
     try {
-      const r = await fetch(`http://localhost:${HOST_PORT}/latest.json`);
+      const r = await fetch(`http://localhost:${HOST_PORT}/v1/latest.json`);
       if (r.ok) {
         manifest = await r.json();
         break;
@@ -179,7 +179,7 @@ const main = async (): Promise<void> => {
   ];
   let okCount = 0;
   for (const a of artifacts) {
-    const r = await fetch(`http://localhost:${HOST_PORT}/${a.filename}`);
+    const r = await fetch(`http://localhost:${HOST_PORT}/v1/${a.filename}`);
     if (!r.ok) {
       console.log(`  ✗ ${a.filename}: HTTP ${r.status}`);
       continue;

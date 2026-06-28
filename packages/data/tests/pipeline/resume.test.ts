@@ -50,7 +50,7 @@ const setupExtractedState = async (): Promise<void> => {
 const allStages = () => [
   placesStage("cities500.txt"),
   addressesStage,
-  postalStage,
+  postalStage("allCountries.txt"),
   countriesStage,
   publishStage(SOURCES),
 ];

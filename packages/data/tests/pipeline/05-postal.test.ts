@@ -33,9 +33,11 @@ const makeCtx = (): StageCtx => ({
   log: () => {},
 });
 
+const stage = () => postalStage("allCountries.txt");
+
 describe("postalStage", () => {
   test("parses GeoNames TSV into clean CSV", async () => {
-    await postalStage.run(makeCtx());
+    await stage().run(makeCtx());
 
     const csv = await readFile(join(stagingDir, "postal_codes.csv"), "utf8");
     const lines = csv.split("\n").filter(Boolean);
@@ -61,11 +63,11 @@ describe("postalStage", () => {
   });
 
   test("isDone is true when output exists", async () => {
-    await postalStage.run(makeCtx());
-    expect(await postalStage.isDone(makeCtx())).toBe(true);
+    await stage().run(makeCtx());
+    expect(await stage().isDone(makeCtx())).toBe(true);
   });
 
   test("isDone is false when output is missing", async () => {
-    expect(await postalStage.isDone(makeCtx())).toBe(false);
+    expect(await stage().isDone(makeCtx())).toBe(false);
   });
 });

@@ -63,10 +63,9 @@ describe("pipeline end-to-end (post-extract)", () => {
       [
         placesStage("cities500.txt"),
         addressesStage,
-        postalStage,
+        postalStage("allCountries.txt"),
         countriesStage,
         publishStage(SOURCES),
-        
       ],
       { stagingDir, outputDir, log: () => {} },
     );
@@ -113,10 +112,9 @@ describe("pipeline end-to-end (post-extract)", () => {
     const stages = [
       placesStage("cities500.txt"),
       addressesStage,
-      postalStage,
+      postalStage("allCountries.txt"),
       countriesStage,
       publishStage(SOURCES),
-      
     ];
 
     await runStages(stages, ctx);

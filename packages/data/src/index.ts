@@ -24,7 +24,7 @@ bindMetrics(metrics);
 
 if (config.buildOnce) {
   // External scheduler is driving us — build once and exit.
-  console.log("[Geomark Data] BUILD_ONCE=true, running single build then exiting");
+  console.log("[Geomark Data] BUILD_ONCE enabled, running single build then exiting");
   await buildOnce();
   process.exit(0);
 }

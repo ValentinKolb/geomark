@@ -45,13 +45,16 @@ const requirePositiveInt = (key: string, raw: string): number => {
   return n;
 };
 
+const enabled = (raw: string | undefined): boolean =>
+  raw === "1" || raw === "true";
+
 export const config = {
   outputDir: process.env.OUTPUT_DIR ?? "/data",
   refreshIntervalDays: requirePositiveInt(
     "REFRESH_INTERVAL_DAYS",
     process.env.REFRESH_INTERVAL_DAYS ?? "30",
   ),
-  buildOnce: process.env.BUILD_ONCE === "true",
+  buildOnce: enabled(process.env.BUILD_ONCE),
   geonamesCitiesUrl: requireUrlWithFilename("GEONAMES_CITIES_URL", cities),
   geonamesPostalUrl: requireUrlWithFilename("GEONAMES_POSTAL_URL", postal),
   geonamesCountryInfoUrl: requireUrlWithFilename(
