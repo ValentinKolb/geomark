@@ -4,7 +4,7 @@
  * loader then exercises each service function against it.
  *
  *   docker run -d --rm --name pg ... timescale/timescaledb-ha:pg17-all
- *   DATABASE_URL=postgres://... DATA_URL=http://localhost:19997 \
+ *   DATABASE_URL=postgres://... DATA_URL=http://localhost:19997/v1 \
  *     bun packages/api/scripts/smoke-service.ts
  */
 import { sql } from "bun";
@@ -119,8 +119,8 @@ const main = async (): Promise<void> => {
   };
 
   const app = new Hono();
-  app.get("/latest.json", (c) => c.json(manifest));
-  app.get("/:filename", (c) => {
+  app.get("/v1/latest.json", (c) => c.json(manifest));
+  app.get("/v1/:filename", (c) => {
     const b = files[c.req.param("filename")];
     if (!b) return c.json({ error: "nf" }, 404);
     return new Response(b as BodyInit, { headers: { "Content-Type": "application/zstd" } });
@@ -252,6 +252,24 @@ const main = async (): Promise<void> => {
       expect(r.data.countries["US"] === "address", `US=${r.data.countries["US"]}`);
       expect(r.data.countries["FR"] === "none", `FR=${r.data.countries["FR"]}`);
       console.log(`   DE=address US=address FR=none ✓`);
+    }
+
+    // ─── random ───────────────────────────────────────────────────────────────
+    console.log("==> random sample");
+    {
+      const r = await service.random({
+        limit: 3,
+        country: "DE",
+        min_population: 1000,
+      });
+      if (!r.ok) throw new Error(`random failed`);
+      expect(r.data.total <= 3, `random total=${r.data.total}`);
+      expect(r.data.places.length > 0, "expected at least one random place");
+      for (const place of r.data.places) {
+        expect(place.country_code === "DE", `non-DE random place: ${place.country_code}`);
+        expect((place.population ?? 0) >= 1000, `population=${place.population}`);
+      }
+      console.log(`   ${r.data.total} DE places ✓`);
     }
 
     // ─── batch ────────────────────────────────────────────────────────────────

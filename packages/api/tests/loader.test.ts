@@ -20,12 +20,21 @@ beforeEach(async () => {
   // Reset state between tests so they're independent.
   await sql`
     TRUNCATE TABLE
+      geomark.coverage, geomark.place_aliases,
       geomark.places, geomark.addresses,
       geomark.postal_codes, geomark.countries
     RESTART IDENTITY
   `;
   await sql`
-    UPDATE geomark.meta SET dataset_version=NULL, manifest_sha256=NULL, loaded_at=NULL
+    UPDATE geomark.meta SET
+      dataset_version=NULL,
+      manifest_sha256=NULL,
+      loaded_at=NULL,
+      places_count=0,
+      addresses_count=0,
+      postal_codes_count=0,
+      countries_count=0,
+      aliases_count=0
   `;
 });
 
@@ -99,11 +108,58 @@ describe("ingestAll happy path", () => {
           dataset_version: string;
           manifest_sha256: string;
           loaded_at: Date;
+          places_count: number;
+          addresses_count: number;
+          postal_codes_count: number;
+          countries_count: number;
+          aliases_count: number;
         }[]
-      >`SELECT dataset_version, manifest_sha256, loaded_at FROM geomark.meta`;
+      >`
+        SELECT
+          dataset_version,
+          manifest_sha256,
+          loaded_at,
+          places_count,
+          addresses_count,
+          postal_codes_count,
+          countries_count,
+          aliases_count
+        FROM geomark.meta
+      `;
       expect(row?.dataset_version).toBe(mock.manifest.version);
       expect(row?.manifest_sha256).toBe(mock.fingerprint);
       expect(row?.loaded_at).toBeInstanceOf(Date);
+      expect(row?.places_count).toBe(6);
+      expect(row?.addresses_count).toBe(5);
+      expect(row?.postal_codes_count).toBe(5);
+      expect(row?.countries_count).toBe(3);
+      expect(row?.aliases_count).toBe(0);
+    } finally {
+      mock.stop();
+    }
+  });
+
+  test("materializes reference read models", async () => {
+    const mock = await startMockDataServer();
+    try {
+      await ingestAll(mock.baseUrl, mock.manifest, mock.fingerprint);
+      const countries = await sql<{ code: string; place_count: number }[]>`
+        SELECT code, place_count FROM geomark.countries ORDER BY code
+      `;
+      expect(countries).toEqual([
+        { code: "DE", place_count: 4 },
+        { code: "FR", place_count: 0 },
+        { code: "US", place_count: 2 },
+      ]);
+
+      const coverage = await sql<{ country_code: string; status: string }[]>`
+        SELECT country_code, status FROM geomark.coverage ORDER BY country_code
+      `;
+      expect(coverage).toEqual([
+        { country_code: "DE", status: "address" },
+        { country_code: "FR", status: "none" },
+        { country_code: "US", status: "address" },
+      ]);
     } finally {
       mock.stop();
     }

@@ -17,13 +17,16 @@ bun run typecheck  # tsc --noEmit on src/ and tests/
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL`         | (required)         | Postgres connection string. The schema must include PostGIS, pg_trgm, unaccent, and pg_textsearch — the migration creates them with `CREATE EXTENSION IF NOT EXISTS`. |
-| `DATA_URL`             | `http://data:3000` | Where to fetch the dataset bundle from. The compose default points at the data builder service. |
+| `DATA_URL`             | `http://data:3000/v1` | Where to fetch the dataset bundle from. Include the data builder's `/v1` prefix. |
+| `REDIS_URL`            | (none)             | Optional Redis URL. When set, the API uses native Bun Redis for distributed rate limiting and short-lived response caches. Compose sets this automatically. |
 | `PORT`                 | `3000`             | HTTP port to listen on. |
 | `API_KEY`              | (none)             | If set, bearer-auth is enforced on all `/v1/*` routes. `/health` and `/ready` stay open. |
-| `RATELIMIT_PER_MINUTE` | `60`               | Per-IP sliding-window rate limit. |
+| `RATELIMIT_PER_MINUTE` | `60`               | Per-IP sliding-window rate limit. Redis-backed when `REDIS_URL` is set; otherwise in-memory per process. |
+| `RANDOM_CACHE_SECONDS` | `10`               | Shared TTL for `/v1/random` responses. Set `0` to disable. |
+| `REFERENCE_CACHE_SECONDS` | `300`           | Shared TTL for stable reference endpoints such as countries and coverage. Set `0` to disable. |
 | `TRUSTED_PROXY_HOPS`   | `1`                | Number of `X-Forwarded-For` hops to trust when extracting client IPs. `1` matches the typical "behind one reverse proxy" setup; set to `0` for direct exposure. |
 | `REFRESH_INTERVAL_HOURS` | `6`              | How often the API polls the data builder's manifest for a new dataset version. Distinct from `REFRESH_INTERVAL_DAYS` in the data package, which controls upstream re-download cadence. |
-| `LOAD_ONCE`            | (unset)            | If set to `1`, the API ingests once and skips the periodic refresh loop. Useful in tests. |
+| `LOAD_ONCE`            | (unset)            | If set to `1` or `true`, the API ingests once and exits. Useful in tests and external schedulers. |
 | `METRICS_ENABLED`      | `true`             | Mounts the `/metrics` Prometheus scrape endpoint and the HTTP RED middleware on `/v1/*`. The metrics registry itself is always built (zero cost when unscraped) so loader gauges stay valid. |
 | `METRICS_TOKEN`        | (none)             | Bearer token for `/metrics`. Layered fallback: if unset and `API_KEY` is set, the API key gates `/metrics` too. Both unset → open mode (intended for trusted internal networks). Constant-time compare against the provided token. |
 | `METRICS_PATH`         | `/metrics`         | Path for the scrape endpoint. Override only if your gateway needs something exotic. |
@@ -43,6 +46,9 @@ default collector, plus the Geomark-specific series:
 | `geomark_dataset_loaded_at_seconds` | gauge | — | Unix timestamp of last successful load |
 | `geomark_dataset_loads_total` | counter | `result` (`success`/`error`/`skipped_unchanged`) | Loader run outcomes |
 | `geomark_loader_duration_seconds` | histogram | `stage` (`ingest`/`refresh`) | Loader runtime per stage |
+| `geomark_cache_events_total` | counter | `scope`, `result` | Redis response-cache hits, misses, writes, bypasses, and errors |
+| `geomark_redis_errors_total` | counter | `operation` | Redis read/write/rate-limit operation errors |
+| `geomark_ratelimit_checks_total` | counter | `backend`, `outcome` | Rate-limit backend usage and allow/reject/fallback outcomes |
 | `geomark_ratelimit_rejected_total` | counter | — | Requests dropped by the per-IP limiter |
 | `geomark_auth_rejected_total` | counter | `reason` (`missing`/`malformed`/`invalid`) | Bearer-auth rejections |
 | `geomark_build_info` | gauge | `version`, `commit` | Build provenance (value=1) |

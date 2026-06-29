@@ -1,6 +1,9 @@
 import { sql } from "bun";
 import type { Country } from "@geomark/shared";
 import { err, fail, ok, type Result } from "../lib/respond";
+import { config } from "../config";
+import { cacheGetJson, cacheSetJson } from "../lib/redis";
+import { currentDatasetVersion } from "./meta";
 
 type DbRow = Record<string, unknown>;
 
@@ -21,38 +24,55 @@ const COUNTRIES_QUERY = sql`
   SELECT
     c.code, c.code3, c.name, c.capital, c.continent, c.currency_code,
     c.languages, c.calling_code, c.flag_emoji,
-    COALESCE(p.cnt, 0) AS place_count
+    c.place_count
   FROM geomark.countries c
-  LEFT JOIN (
-    SELECT country_code, COUNT(*)::int AS cnt
-    FROM geomark.places
-    WHERE country_code IS NOT NULL
-    GROUP BY country_code
-  ) p ON p.country_code = c.code
 `;
 
-export const listCountries = async (): Promise<
-  Result<{ countries: Country[]; total: number }>
-> => {
+const countriesCacheKey = (version: string): string =>
+  `geomark:cache:countries:${version}`;
+
+const readCountries = async (): Promise<Country[]> => {
   const rows = await sql<DbRow[]>`
     ${COUNTRIES_QUERY}
     ORDER BY c.name
   `;
+  return rows.map(mapCountry);
+};
+
+const getCachedCountries = async (): Promise<Country[]> => {
+  const version = await currentDatasetVersion();
+  const key = countriesCacheKey(version);
+  try {
+    const cached = await cacheGetJson<Country[]>(key, "countries");
+    if (cached) return cached;
+  } catch (err) {
+    console.warn("[countries] Redis cache read failed:", err);
+  }
+
+  const countries = await readCountries();
+  try {
+    await cacheSetJson(key, countries, config.referenceCacheSeconds, "countries");
+  } catch (err) {
+    console.warn("[countries] Redis cache write failed:", err);
+  }
+  return countries;
+};
+
+export const listCountries = async (): Promise<
+  Result<{ countries: Country[]; total: number }>
+> => {
+  const countries = await getCachedCountries();
   return ok({
-    countries: rows.map(mapCountry),
-    total: rows.length,
+    countries,
+    total: countries.length,
   });
 };
 
 export const getCountry = async (code: string): Promise<Result<Country>> => {
   const upper = code.toUpperCase();
-  const rows = await sql<DbRow[]>`
-    ${COUNTRIES_QUERY}
-    WHERE c.code = ${upper}
-    LIMIT 1
-  `;
-  if (rows.length === 0) {
+  const country = (await getCachedCountries()).find((c) => c.code === upper);
+  if (!country) {
     return fail(err.notFound(`country not found: ${upper}`));
   }
-  return ok(mapCountry(rows[0]!));
+  return ok(country);
 };

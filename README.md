@@ -77,7 +77,10 @@ The full env surface is documented per package
 | Variable | Default | Description |
 |---|---|---|
 | `API_KEY` | (none) | If set, bearer-auth is enforced on all `/v1/*` routes. |
-| `RATELIMIT_PER_MINUTE` | `60` | Per-IP rate limit. |
+| `REDIS_URL` | `redis://redis:6379` in compose | Native Bun Redis backend for distributed rate limiting and shared short-lived API caches. |
+| `RATELIMIT_PER_MINUTE` | `60` | Per-IP rate limit. Redis-backed in compose, in-memory fallback otherwise. |
+| `RANDOM_CACHE_SECONDS` | `10` | Shared TTL for `/v1/random`, including the homepage showcase sample. |
+| `REFERENCE_CACHE_SECONDS` | `300` | Shared TTL for stable reference endpoints such as countries and coverage. |
 | `OPENADDRESSES_URL` | (required) | URL of an OpenAddresses bundle ZIP for the data loader. |
 | `GEONAMES_ALIASES_URL` | (none) | Optional. When set, multilingual aliases are loaded too. |
 | `METRICS_ENABLED` | `true` | Prometheus scrape endpoint + RED middleware. Set `false` to disable. |

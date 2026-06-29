@@ -506,9 +506,8 @@ const checks: { name: string; run: () => Promise<void> }[] = [
     run: async () => {
       const r = await fetch(`${baseUrl}/ready`);
       expect(r.status === 200, `status=${r.status}`);
-      // The body shape doesn't include aliases_count yet; just check the
-      // place_aliases table directly via the /openapi.json existence.
-      // (We log the count inside loader; trust that.)
+      const body = await r.json() as { aliases_count?: number };
+      expect(typeof body.aliases_count === "number", "aliases_count missing");
     },
   },
 ];

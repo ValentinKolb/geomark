@@ -40,6 +40,7 @@ describe("migrate", () => {
     expect(tables.map((t: { tablename: string }) => t.tablename)).toEqual([
       "addresses",
       "countries",
+      "coverage",
       "meta",
       "place_aliases",
       "places",
@@ -59,6 +60,8 @@ describe("migrate", () => {
     expect(names).toContain("idx_addresses_search_bm25");
     expect(names).toContain("idx_addresses_search_trgm");
     expect(names).toContain("idx_places_geom");
+    expect(names).toContain("idx_places_sample_key");
+    expect(names).toContain("idx_places_country_sample_key");
     expect(names).toContain("idx_addresses_geom");
     expect(names).toContain("idx_postal_geom");
     expect(names).toContain("idx_postal_place_trgm");
@@ -77,20 +80,27 @@ describe("migrate", () => {
     expect(row?.s).toBe("mullerstrasse");
   });
 
-  test("places.geom + search_text are auto-computed (generated stored)", async () => {
+  test("places geom/search_text/sample_key are auto-computed", async () => {
     await sql`TRUNCATE geomark.places`;
     await sql`
       INSERT INTO geomark.places (gid, name, latitude, longitude)
       VALUES ('test:1', 'Lübeck', 53.86893, 10.68729)
     `;
     const [row] = await sql<
-      { name: string; search_text: string; geom_wkt: string }[]
+      {
+        name: string;
+        search_text: string;
+        geom_wkt: string;
+        sample_key: number;
+      }[]
     >`
-      SELECT name, search_text, ST_AsText(geom) AS geom_wkt
+      SELECT name, search_text, ST_AsText(geom) AS geom_wkt, sample_key
       FROM geomark.places WHERE gid = 'test:1'
     `;
     expect(row?.search_text).toBe("lubeck");
     expect(row?.geom_wkt).toBe("POINT(10.68729 53.86893)");
+    expect(row?.sample_key).toBeGreaterThanOrEqual(0);
+    expect(row?.sample_key).toBeLessThan(1);
   });
 
   test("addresses.label NOT NULL + search_text generated", async () => {
@@ -120,8 +130,12 @@ describe("migrate", () => {
   });
 
   test("meta is a single-row table with id=TRUE seeded", async () => {
-    const rows = await sql<{ id: boolean }[]>`SELECT id FROM geomark.meta`;
+    const rows = await sql<
+      { id: boolean; places_count: number; aliases_count: number }[]
+    >`SELECT id, places_count, aliases_count FROM geomark.meta`;
     expect(rows.length).toBe(1);
     expect(rows[0]?.id).toBe(true);
+    expect(rows[0]?.places_count).toBe(0);
+    expect(rows[0]?.aliases_count).toBe(0);
   });
 });

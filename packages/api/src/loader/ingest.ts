@@ -379,13 +379,70 @@ const ingestInto = async <TRow>(
   return count;
 };
 
+const clearActiveTables = async (tx: SQL): Promise<void> => {
+  // DELETE keeps MVCC readers on the old committed dataset while the refresh
+  // transaction loads the new one. Table-level truncation would take ACCESS
+  // EXCLUSIVE locks and can stall public reads for the full ingest duration.
+  await tx`DELETE FROM geomark.coverage`;
+  await tx`DELETE FROM geomark.place_aliases`;
+  await tx`DELETE FROM geomark.addresses`;
+  await tx`DELETE FROM geomark.postal_codes`;
+  await tx`DELETE FROM geomark.countries`;
+  await tx`DELETE FROM geomark.places`;
+};
+
+const materializeReferenceState = async (
+  tx: SQL,
+  counts: IngestCounts,
+  manifest: Manifest,
+  fingerprint: string,
+): Promise<void> => {
+  await tx`UPDATE geomark.countries SET place_count = 0`;
+  await tx`
+    UPDATE geomark.countries c SET place_count = p.cnt
+    FROM (
+      SELECT country_code, COUNT(*)::int AS cnt
+      FROM geomark.places
+      WHERE country_code IS NOT NULL
+      GROUP BY country_code
+    ) p
+    WHERE p.country_code = c.code
+  `;
+  await tx`DELETE FROM geomark.coverage`;
+  await tx`
+    INSERT INTO geomark.coverage (country_code, status)
+    SELECT
+      c.code,
+      CASE
+        WHEN EXISTS (SELECT 1 FROM geomark.addresses a WHERE a.country_code = c.code)
+          THEN 'address'
+        WHEN c.place_count > 0
+          THEN 'place_only'
+        ELSE 'none'
+      END AS status
+    FROM geomark.countries c
+  `;
+  await tx`
+    UPDATE geomark.meta SET
+      dataset_version    = ${manifest.version},
+      manifest_sha256    = ${fingerprint},
+      loaded_at          = NOW(),
+      places_count       = ${counts.places},
+      addresses_count    = ${counts.addresses},
+      postal_codes_count = ${counts.postal_codes},
+      countries_count    = ${counts.countries},
+      aliases_count      = ${counts.aliases}
+    WHERE id = TRUE
+  `;
+};
+
 /**
  * Full atomic refresh:
  *   1. Download every file to a temp dir + SHA-verify. If any fails, throw
  *      before touching the DB (the previous dataset stays valid).
- *   2. Open a single transaction: TRUNCATE all 4 tables, stream-INSERT,
- *      then UPDATE meta. Readers see either the old or the new dataset,
- *      and meta moves in lockstep with the data.
+ *   2. Open a single transaction: DELETE active rows, stream-INSERT the new
+ *      dataset, materialize stable reference state, then UPDATE meta. MVCC
+ *      readers see the old committed dataset until the transaction commits.
  *   3. Cleanup temp files in `finally`.
  */
 export const ingestAll = async (
@@ -444,15 +501,7 @@ export const ingestAll = async (
       aliases: 0,
     };
     await sql.begin(async (tx) => {
-      await tx`
-        TRUNCATE TABLE
-          geomark.places,
-          geomark.addresses,
-          geomark.postal_codes,
-          geomark.countries,
-          geomark.place_aliases
-        RESTART IDENTITY
-      `;
+      await clearActiveTables(tx);
       counts.places = await ingestInto(
         tx, "geomark.places", placesPath,
         manifest.files.places.filename, PLACES_REQUIRED, mapPlace,
@@ -477,13 +526,7 @@ export const ingestAll = async (
           manifest.files.aliases.filename, ALIASES_REQUIRED, mapAlias,
         );
       }
-      await tx`
-        UPDATE geomark.meta SET
-          dataset_version = ${manifest.version},
-          manifest_sha256 = ${fingerprint},
-          loaded_at       = NOW()
-        WHERE id = TRUE
-      `;
+      await materializeReferenceState(tx, counts, manifest, fingerprint);
     });
     return counts;
   } finally {

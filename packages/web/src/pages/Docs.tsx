@@ -361,7 +361,7 @@ const { countries } = await res.json();
     path: "/v1/random",
     summary: "Random sample",
     description:
-      "Up to 5000 random places. Useful for visualisations, sampling, and dataset exploration. Filter by `country` and/or `min_population`.",
+      "Up to 5000 random places. Useful for visualisations, sampling, and dataset exploration. Filter by `country` and/or `min_population`. The hosted API serves this from an indexed sample path with a short shared cache.",
     params: [
       { name: "limit", desc: "How many places, 1–5000. Default 500." },
       { name: "country", desc: "Restrict to one ISO 3166-1 alpha-2." },
@@ -738,7 +738,10 @@ export default ssr(async (c) => {
             <dl class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-x-6 gap-y-3 text-sm">
               {[
                 ["API_KEY", "If set, bearer-auth is enforced on /v1/*. /health and /ready stay open."],
-                ["RATELIMIT_PER_MINUTE", "Per-IP sliding-window rate limit. Default 60."],
+                ["REDIS_URL", "Optional Redis URL. Compose sets it automatically for distributed rate limiting and shared response caches."],
+                ["RATELIMIT_PER_MINUTE", "Per-IP sliding-window rate limit. Default 60. Redis-backed when REDIS_URL is set."],
+                ["RANDOM_CACHE_SECONDS", "Shared TTL for /v1/random responses. Default 10; set 0 to disable."],
+                ["REFERENCE_CACHE_SECONDS", "Shared TTL for stable reference endpoints such as countries and coverage. Default 300; set 0 to disable."],
                 ["TRUSTED_PROXY_HOPS", "Number of X-Forwarded-For hops to trust. 0 for direct, 1 behind a single reverse proxy."],
                 ["OPENADDRESSES_URL", "Required. URL of an OpenAddresses bundle ZIP."],
                 ["GEONAMES_CITIES_URL", "Override for smaller subsets. Default: cities500.zip from GeoNames."],

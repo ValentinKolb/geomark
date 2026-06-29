@@ -19,6 +19,16 @@ services:
       retries: 12
       start_period: 30s
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
   data:
     build:
       context: .
@@ -48,8 +58,11 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-geomark}:${POSTGRES_PASSWORD:-geomark}@db:5432/${POSTGRES_DB:-geomark}
       DATA_URL: ${DATA_URL:-http://data:3000/v1}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       API_KEY: ${API_KEY:-}
       RATELIMIT_PER_MINUTE: ${RATELIMIT_PER_MINUTE:-60}
+      RANDOM_CACHE_SECONDS: ${RANDOM_CACHE_SECONDS:-10}
+      REFERENCE_CACHE_SECONDS: ${REFERENCE_CACHE_SECONDS:-300}
       REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-6}
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
       METRICS_ENABLED: ${METRICS_ENABLED:-true}
@@ -59,6 +72,8 @@ services:
       - "${API_HOST_PORT:-4000}:3000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       data:
         condition: service_started

@@ -14,6 +14,7 @@ import { geoRoutes } from "./routes";
 import { createRegistry, type MetricsRegistry } from "./metrics/registry";
 import { metricsMiddleware } from "./metrics/middleware";
 import { metricsAuth } from "./metrics/auth";
+import { installRuntimeMetrics } from "./metrics/runtime";
 
 /**
  * Build the Hono app: routes, middleware, OpenAPI spec, error handlers.
@@ -36,6 +37,7 @@ export const createApp = async (): Promise<{
   // middleware are gated on METRICS_ENABLED, so an unscraped registry
   // costs a few KB and nothing else.
   const metrics = createRegistry();
+  installRuntimeMetrics(metrics);
 
   // Logger — skip /health and /ready so probe traffic doesn't drown real
   // requests in the log. Everything else is logged.
@@ -84,14 +86,16 @@ export const createApp = async (): Promise<{
           places: number;
           addresses: number;
           postal: number;
+          aliases: number;
           loaded_at: Date | null;
           dataset_version: string | null;
         }[]
       >`
         SELECT
-          (SELECT COUNT(*)::int FROM geomark.places)        AS places,
-          (SELECT COUNT(*)::int FROM geomark.addresses)     AS addresses,
-          (SELECT COUNT(*)::int FROM geomark.postal_codes)  AS postal,
+          m.places_count       AS places,
+          m.addresses_count    AS addresses,
+          m.postal_codes_count AS postal,
+          m.aliases_count      AS aliases,
           m.loaded_at, m.dataset_version
         FROM geomark.meta m
         WHERE m.id = TRUE
@@ -102,9 +106,10 @@ export const createApp = async (): Promise<{
           status: ready ? ("ready" as const) : ("loading" as const),
           dataset_version: row?.dataset_version ?? null,
           data_loaded_at: row?.loaded_at ? row.loaded_at.toISOString() : null,
-          places_count: row?.places ?? 0,
-          addresses_count: row?.addresses ?? 0,
-          postal_codes_count: row?.postal ?? 0,
+          places_count: ready ? (row?.places ?? 0) : 0,
+          addresses_count: ready ? (row?.addresses ?? 0) : 0,
+          postal_codes_count: ready ? (row?.postal ?? 0) : 0,
+          aliases_count: ready ? (row?.aliases ?? 0) : 0,
         },
         ready ? 200 : 503,
       );

@@ -13,6 +13,7 @@ import { sql } from "bun";
  *   addresses      OpenAddresses points (gid 'oa:CC_HASH')
  *   postal_codes   GeoNames postal codes (surrogate id; source has dups)
  *   countries      GeoNames country info
+ *   coverage       Materialized per-country deepest available layer
  *   meta           single-row marker for the loaded dataset version
  *
  * Search strategy (hybrid BM25 + pg_trgm)
@@ -51,9 +52,19 @@ export const migrate = async (): Promise<void> => {
       id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id = TRUE),
       dataset_version TEXT,
       manifest_sha256 TEXT,
-      loaded_at TIMESTAMPTZ
+      loaded_at TIMESTAMPTZ,
+      places_count INTEGER NOT NULL DEFAULT 0,
+      addresses_count INTEGER NOT NULL DEFAULT 0,
+      postal_codes_count INTEGER NOT NULL DEFAULT 0,
+      countries_count INTEGER NOT NULL DEFAULT 0,
+      aliases_count INTEGER NOT NULL DEFAULT 0
     )
   `.simple();
+  await sql`ALTER TABLE geomark.meta ADD COLUMN IF NOT EXISTS places_count INTEGER NOT NULL DEFAULT 0`.simple();
+  await sql`ALTER TABLE geomark.meta ADD COLUMN IF NOT EXISTS addresses_count INTEGER NOT NULL DEFAULT 0`.simple();
+  await sql`ALTER TABLE geomark.meta ADD COLUMN IF NOT EXISTS postal_codes_count INTEGER NOT NULL DEFAULT 0`.simple();
+  await sql`ALTER TABLE geomark.meta ADD COLUMN IF NOT EXISTS countries_count INTEGER NOT NULL DEFAULT 0`.simple();
+  await sql`ALTER TABLE geomark.meta ADD COLUMN IF NOT EXISTS aliases_count INTEGER NOT NULL DEFAULT 0`.simple();
   await sql`INSERT INTO geomark.meta (id) VALUES (TRUE) ON CONFLICT DO NOTHING`.simple();
 
   // ─── places ─────────────────────────────────────────────────────────────────
@@ -73,11 +84,15 @@ export const migrate = async (): Promise<void> => {
       population       BIGINT,
       elevation        INTEGER,
       timezone         TEXT,
+      sample_key       DOUBLE PRECISION NOT NULL DEFAULT random(),
       search_text      TEXT GENERATED ALWAYS AS (geomark.f_unaccent(lower(name))) STORED
     )
   `.simple();
+  await sql`ALTER TABLE geomark.places ADD COLUMN IF NOT EXISTS sample_key DOUBLE PRECISION NOT NULL DEFAULT random()`.simple();
   await sql`CREATE INDEX IF NOT EXISTS idx_places_geom ON geomark.places USING GIST (geom)`.simple();
   await sql`CREATE INDEX IF NOT EXISTS idx_places_country ON geomark.places (country_code)`.simple();
+  await sql`CREATE INDEX IF NOT EXISTS idx_places_sample_key ON geomark.places (sample_key)`.simple();
+  await sql`CREATE INDEX IF NOT EXISTS idx_places_country_sample_key ON geomark.places (country_code, sample_key)`.simple();
   await sql`CREATE INDEX IF NOT EXISTS idx_places_search_trgm ON geomark.places USING GIN (search_text gin_trgm_ops)`.simple();
   await sql`CREATE INDEX IF NOT EXISTS idx_places_search_bm25 ON geomark.places USING bm25 (search_text) WITH (text_config='simple')`.simple();
 
@@ -140,7 +155,17 @@ export const migrate = async (): Promise<void> => {
       currency_code    TEXT,
       languages        TEXT[] NOT NULL DEFAULT '{}',
       calling_code     TEXT,
-      flag_emoji       TEXT
+      flag_emoji       TEXT,
+      place_count      INTEGER NOT NULL DEFAULT 0
+    )
+  `.simple();
+  await sql`ALTER TABLE geomark.countries ADD COLUMN IF NOT EXISTS place_count INTEGER NOT NULL DEFAULT 0`.simple();
+
+  // ─── coverage (materialized by the loader, stable between dataset refreshes) ─
+  await sql`
+    CREATE TABLE IF NOT EXISTS geomark.coverage (
+      country_code TEXT PRIMARY KEY,
+      status       TEXT NOT NULL CHECK (status IN ('address', 'place_only', 'none'))
     )
   `.simple();
 

@@ -24,6 +24,7 @@ import { ATTRIBUTION } from "../attribution";
 import { ok } from "../lib/respond";
 import { service } from "../service";
 import { respond } from "../lib/respond";
+import { config } from "../config";
 
 // Validator failure hook: reshape standard-schema issues into our
 // ErrorSchema `{ error, code }` so the documented contract holds.
@@ -274,5 +275,13 @@ export const geoRoutes = new Hono()
       },
     }),
     validator("query", RandomQuerySchema, onInvalid),
-    async (c) => respond(c, () => service.random(c.req.valid("query"))),
+    async (c) => {
+      if (config.randomCacheSeconds > 0) {
+        c.header(
+          "Cache-Control",
+          `public, max-age=${config.randomCacheSeconds}, stale-while-revalidate=${config.randomCacheSeconds * 6}`,
+        );
+      }
+      return respond(c, () => service.random(c.req.valid("query")));
+    },
   );

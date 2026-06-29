@@ -62,6 +62,10 @@ let ci = 0;
 
 const scenarios: Scenario[] = [
   {
+    name: "GET /ready",
+    next: () => `${BASE}/ready`,
+  },
+  {
     name: "GET /v1/search?q=...",
     next: () => `${BASE}/v1/search?q=${encodeURIComponent(queries[qi++ % queries.length]!)}&limit=10`,
   },
@@ -90,6 +94,10 @@ const scenarios: Scenario[] = [
   {
     name: "GET /v1/coverage",
     next: () => `${BASE}/v1/coverage`,
+  },
+  {
+    name: "GET /v1/random?limit=2000",
+    next: () => `${BASE}/v1/random?limit=2000`,
   },
   {
     name: "GET /v1/postal?code=10115",

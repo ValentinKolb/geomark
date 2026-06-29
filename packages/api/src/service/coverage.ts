@@ -1,5 +1,8 @@
 import { sql } from "bun";
+import { config } from "../config";
+import { cacheGetJson, cacheSetJson } from "../lib/redis";
 import { ok, type Result } from "../lib/respond";
+import { currentDatasetVersion } from "./meta";
 
 type CoverageStatus = "address" | "place_only" | "none";
 
@@ -12,22 +15,34 @@ type CoverageStatus = "address" | "place_only" | "none";
 export const getCoverage = async (): Promise<
   Result<{ countries: Record<string, CoverageStatus> }>
 > => {
-  const rows = await sql<
-    { code: string; has_addresses: boolean; has_places: boolean }[]
-  >`
-    SELECT
-      c.code,
-      EXISTS (SELECT 1 FROM geomark.addresses a WHERE a.country_code = c.code) AS has_addresses,
-      EXISTS (SELECT 1 FROM geomark.places   p WHERE p.country_code = c.code) AS has_places
-    FROM geomark.countries c
-    ORDER BY c.code
+  const version = await currentDatasetVersion();
+  const key = `geomark:cache:coverage:${version}`;
+  try {
+    const cached = await cacheGetJson<Record<string, CoverageStatus>>(
+      key,
+      "coverage",
+    );
+    if (cached) return ok({ countries: cached });
+  } catch (err) {
+    console.warn("[coverage] Redis cache read failed:", err);
+  }
+
+  const rows = await sql<{ code: string; status: CoverageStatus }[]>`
+    SELECT country_code AS code, status::text AS status
+    FROM geomark.coverage
+    ORDER BY country_code
   `;
 
   const out: Record<string, CoverageStatus> = {};
   for (const r of rows) {
-    if (r.has_addresses) out[r.code] = "address";
-    else if (r.has_places) out[r.code] = "place_only";
-    else out[r.code] = "none";
+    out[r.code] = r.status;
   }
+
+  try {
+    await cacheSetJson(key, out, config.referenceCacheSeconds, "coverage");
+  } catch (err) {
+    console.warn("[coverage] Redis cache write failed:", err);
+  }
+
   return ok({ countries: out });
 };

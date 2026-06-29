@@ -3,6 +3,12 @@ import { Hono } from "hono";
 import { createRegistry } from "../src/metrics/registry";
 import { metricsMiddleware } from "../src/metrics/middleware";
 import { metricsAuth } from "../src/metrics/auth";
+import {
+  installRuntimeMetrics,
+  recordCacheEvent,
+  recordRateLimitCheck,
+  recordRedisError,
+} from "../src/metrics/runtime";
 
 // ─── registry ────────────────────────────────────────────────────────────────
 
@@ -15,6 +21,11 @@ describe("metrics registry", () => {
     m.http.duration.labels({ route: "/v1/search" }).observe(0.012);
     m.dataset.places.set(33676);
     m.dataset.versionInfo.labels({ version: "2026-05-13" }).set(1);
+    m.cache.events.labels({ scope: "random", result: "hit" }).inc();
+    m.redisErrors.labels({ operation: "read" }).inc();
+    m.ratelimitChecks
+      .labels({ backend: "redis", outcome: "allowed" })
+      .inc();
 
     const body = await m.registry.metrics();
 
@@ -25,6 +36,9 @@ describe("metrics registry", () => {
       "geomark_http_in_flight",
       "geomark_places_total",
       "geomark_dataset_version_info",
+      "geomark_cache_events_total",
+      "geomark_redis_errors_total",
+      "geomark_ratelimit_checks_total",
       "geomark_build_info",
       // default-collector spot check (node_process metrics live)
       "process_resident_memory_bytes",
@@ -35,6 +49,13 @@ describe("metrics registry", () => {
     expect(body).toContain('geomark_places_total 33676');
     expect(body).toContain(
       'geomark_http_requests_total{route="/v1/search",status_class="2xx"} 1',
+    );
+    expect(body).toContain(
+      'geomark_cache_events_total{scope="random",result="hit"} 1',
+    );
+    expect(body).toContain('geomark_redis_errors_total{operation="read"} 1');
+    expect(body).toContain(
+      'geomark_ratelimit_checks_total{backend="redis",outcome="allowed"} 1',
     );
   });
 
@@ -61,6 +82,24 @@ describe("metrics registry", () => {
     const bBody = await b.registry.metrics();
     expect(aBody).toContain("geomark_http_in_flight 2");
     expect(bBody).toContain("geomark_http_in_flight 0");
+  });
+
+  test("runtime metrics helpers write to the installed registry", async () => {
+    const m = createRegistry();
+    installRuntimeMetrics(m);
+
+    recordCacheEvent("coverage", "miss");
+    recordRedisError("write");
+    recordRateLimitCheck("memory", "fallback_rejected");
+
+    const body = await m.registry.metrics();
+    expect(body).toContain(
+      'geomark_cache_events_total{scope="coverage",result="miss"} 1',
+    );
+    expect(body).toContain('geomark_redis_errors_total{operation="write"} 1');
+    expect(body).toContain(
+      'geomark_ratelimit_checks_total{backend="memory",outcome="fallback_rejected"} 1',
+    );
   });
 });
 

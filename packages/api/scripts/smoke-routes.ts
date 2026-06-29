@@ -5,7 +5,7 @@
  * network), and asserts.
  *
  *   docker run -d --rm --name pg ... timescale/timescaledb-ha:pg17-all
- *   DATABASE_URL=... DATA_URL=http://localhost:19996 [API_KEY=secret] \
+ *   DATABASE_URL=... DATA_URL=http://localhost:19996/v1 [API_KEY=secret] \
  *     bun packages/api/scripts/smoke-routes.ts
  */
 import { sql } from "bun";
@@ -82,16 +82,17 @@ const seed = async (): Promise<{ stop: () => void }> => {
     "countries.csv.zst": countries, "addresses-de.csv.zst": addrDe,
   };
   const app = new Hono();
-  app.get("/latest.json", (c) => c.json(manifest));
-  app.get("/:filename", (c) => {
+  app.get("/v1/latest.json", (c) => c.json(manifest));
+  app.get("/v1/:filename", (c) => {
     const b = files[c.req.param("filename")];
     if (!b) return c.json({ error: "nf" }, 404);
     return new Response(b as BodyInit, { headers: { "Content-Type": "application/zstd" } });
   });
   const server = Bun.serve({ port: PORT, fetch: app.fetch });
 
-  const m = await fetchManifest(`http://localhost:${PORT}`);
-  await ingestAll(`http://localhost:${PORT}`, m, "fp-smoke");
+  const baseUrl = `http://localhost:${PORT}/v1`;
+  const m = await fetchManifest(baseUrl);
+  await ingestAll(baseUrl, m, "fp-smoke");
 
   return { stop: () => server.stop(true) };
 };
@@ -196,8 +197,13 @@ const main = async (): Promise<void> => {
     console.log("==> GET /v1/place/:gid");
     {
       const r = await req("/v1/place/geonames:2950159");
-      const j = await assertJson<{ name: string }>(r, 200, "/v1/place hit");
-      assert(j.name === "Berlin", `got ${j.name}`);
+      const j = await assertJson<{ place: { name: string } }>(
+        r,
+        200,
+        "/v1/place hit",
+      );
+      assert(j.place.name === "Berlin", `got ${j.place.name}`);
+      assert(Array.isArray((j as { aliases?: unknown }).aliases), "aliases array");
     }
     console.log("==> GET /v1/place/missing → 404");
     {
@@ -254,6 +260,20 @@ const main = async (): Promise<void> => {
       assert(j.countries["US"] === "place_only", `US=${j.countries["US"]}`);
     }
 
+    // ─── /v1/random ─────────────────────────────────────────────────────────
+    console.log("==> GET /v1/random");
+    {
+      const r = await req("/v1/random?limit=2&country=DE&min_population=1000");
+      const j = await assertJson<{ places: { country_code: string }[]; total: number }>(
+        r,
+        200,
+        "/v1/random",
+      );
+      assert(j.total <= 2, `total=${j.total}`);
+      assert(j.places.every((p) => p.country_code === "DE"), "non-DE random place");
+      assert(r.headers.get("Cache-Control") !== null, "random cache header");
+    }
+
     // ─── /v1/batch ──────────────────────────────────────────────────────────
     console.log("==> POST /v1/batch");
     {
@@ -297,13 +317,13 @@ const main = async (): Promise<void> => {
     }
 
     // ─── OpenAPI + docs ──────────────────────────────────────────────────────
-    console.log("==> GET /openapi.json");
+    console.log("==> GET /v1/openapi.json");
     {
-      const r = await req("/openapi.json");
+      const r = await req("/v1/openapi.json");
       const j = await assertJson<{
         openapi: string;
         paths: Record<string, unknown>;
-      }>(r, 200, "/openapi.json");
+      }>(r, 200, "/v1/openapi.json");
       assert(typeof j.openapi === "string", "openapi field");
       const expected = [
         "/v1/search",
@@ -313,6 +333,8 @@ const main = async (): Promise<void> => {
         "/v1/countries/{code}",
         "/v1/postal",
         "/v1/coverage",
+        "/v1/attribution",
+        "/v1/random",
         "/v1/batch",
       ];
       for (const p of expected) {
@@ -320,10 +342,10 @@ const main = async (): Promise<void> => {
       }
       console.log(`   ${expected.length}/${expected.length} paths present ✓`);
     }
-    console.log("==> GET /docs");
+    console.log("==> GET /v1/docs");
     {
-      const r = await req("/docs");
-      assert(r.status === 200, `/docs status=${r.status}`);
+      const r = await req("/v1/docs");
+      assert(r.status === 200, `/v1/docs status=${r.status}`);
       const html = await r.text();
       assert(html.includes("Scalar") || html.includes("scalar"), "Scalar HTML");
     }

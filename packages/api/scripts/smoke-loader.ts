@@ -14,7 +14,7 @@
  *     timescale/timescaledb-ha:pg17-all
  *
  *   DATABASE_URL=postgres://test:test@localhost:54390/test \
- *     DATA_URL=http://localhost:19999 \
+ *     DATA_URL=http://localhost:19999/v1 \
  *     bun packages/api/scripts/smoke-loader.ts
  */
 import { sql } from "bun";
@@ -220,19 +220,39 @@ const main = async (): Promise<void> => {
 
     console.log("==> verifying meta");
     const [meta] = await sql<
-      { dataset_version: string | null; loaded_at: Date | null }[]
-    >`SELECT dataset_version, loaded_at FROM geomark.meta WHERE id = TRUE`;
+      {
+        dataset_version: string | null;
+        loaded_at: Date | null;
+        places_count: number;
+        addresses_count: number;
+        postal_codes_count: number;
+        countries_count: number;
+      }[]
+    >`
+      SELECT
+        dataset_version,
+        loaded_at,
+        places_count,
+        addresses_count,
+        postal_codes_count,
+        countries_count
+      FROM geomark.meta WHERE id = TRUE
+    `;
     if (meta?.dataset_version !== "2026-04-27") {
       throw new Error(`meta.dataset_version: ${meta?.dataset_version}`);
     }
     if (!meta.loaded_at) throw new Error("meta.loaded_at missing");
+    expect(meta.places_count, 4, "meta.places_count");
+    expect(meta.addresses_count, 5, "meta.addresses_count");
+    expect(meta.postal_codes_count, 4, "meta.postal_codes_count");
+    expect(meta.countries_count, 2, "meta.countries_count");
     console.log(`   version=${meta.dataset_version} at=${meta.loaded_at.toISOString()}`);
 
-    console.log("==> verifying generated columns (geom + search_text)");
+    console.log("==> verifying generated columns (geom + search_text + sample_key)");
     const [berlin] = await sql<
-      { name: string; search_text: string; geom_wkt: string }[]
+      { name: string; search_text: string; geom_wkt: string; sample_key: number }[]
     >`
-      SELECT name, search_text, ST_AsText(geom) AS geom_wkt
+      SELECT name, search_text, ST_AsText(geom) AS geom_wkt, sample_key
       FROM geomark.places WHERE gid = 'geonames:2950159'
     `;
     if (!berlin) throw new Error("Berlin row missing");
@@ -240,6 +260,20 @@ const main = async (): Promise<void> => {
     if (!berlin.geom_wkt.startsWith("POINT(13.41053 52.52437)")) {
       throw new Error(`berlin.geom_wkt: ${berlin.geom_wkt}`);
     }
+    if (berlin.sample_key < 0 || berlin.sample_key >= 1) {
+      throw new Error(`berlin.sample_key: ${berlin.sample_key}`);
+    }
+
+    console.log("==> verifying materialized reference state");
+    const [de] = await sql<{ place_count: number }[]>`
+      SELECT place_count FROM geomark.countries WHERE code = 'DE'
+    `;
+    expect(de?.place_count, 2, "DE place_count");
+    const coverage = await sql<{ country_code: string; status: string }[]>`
+      SELECT country_code, status FROM geomark.coverage ORDER BY country_code
+    `;
+    expect(coverage.length, 2, "coverage row count");
+    expect(coverage[0]?.status, "address", "coverage[0]");
 
     console.log("==> verifying address label compose");
     const [addr] = await sql<{ label: string; search_text: string }[]>`

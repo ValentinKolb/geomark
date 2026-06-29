@@ -1,7 +1,7 @@
 import { createSignal, Index, onCleanup, onMount } from "solid-js";
 
 /**
- * Live world map — fetches `/v1/random` every 2s and tweens each
+ * Live world map — fetches `/v1/random` every 5s and tweens each
  * dot's position from its old sample to its new sample.
  *
  * Why position-tween instead of opacity cross-fade: with two
@@ -44,6 +44,8 @@ export default function LiveWorldMap() {
   const [dots, setDots] = createSignal<Dot[]>([]);
   let inFlight = false;
   let intervalId: ReturnType<typeof setInterval> | null = null;
+  let failures = 0;
+  let nextAllowedAt = 0;
 
   const fetchPlaces = async (): Promise<RandomPlace[] | null> => {
     try {
@@ -57,11 +59,18 @@ export default function LiveWorldMap() {
   };
 
   const refresh = async () => {
+    if (document.hidden || Date.now() < nextAllowedAt) return;
     if (inFlight) return;
     inFlight = true;
     try {
       const newPlaces = await fetchPlaces();
-      if (!newPlaces) return;
+      if (!newPlaces) {
+        failures++;
+        nextAllowedAt = Date.now() + Math.min(60_000, INTERVAL_MS * 2 ** failures);
+        return;
+      }
+      failures = 0;
+      nextAllowedAt = 0;
       setDots(
         newPlaces.map((p) => ({
           lng: p.longitude,
@@ -76,7 +85,12 @@ export default function LiveWorldMap() {
 
   onMount(() => {
     refresh();
+    const onVisibility = () => {
+      if (!document.hidden) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     intervalId = setInterval(refresh, INTERVAL_MS);
+    onCleanup(() => document.removeEventListener("visibilitychange", onVisibility));
   });
 
   onCleanup(() => {

@@ -69,6 +69,13 @@ export type MetricsRegistry = {
     duration: Histogram<"stage">;
   };
 
+  /** Runtime performance signals for Redis-backed hot paths. */
+  readonly cache: {
+    events: Counter<"scope" | "result">;
+  };
+  readonly redisErrors: Counter<"operation">;
+  readonly ratelimitChecks: Counter<"backend" | "outcome">;
+
   readonly ratelimitRejected: Counter<string>;
   readonly authRejected: Counter<"reason">;
 
@@ -154,6 +161,25 @@ export const createRegistry = (build: BuildInfo = { version: "dev", commit: "non
     registers: [reg],
   });
 
+  const cacheEvents = new Counter({
+    name: "geomark_cache_events_total",
+    help: "Redis response-cache events by bounded scope and result.",
+    labelNames: ["scope", "result"], // random | countries | coverage | generic; hit | miss | write | bypass | error
+    registers: [reg],
+  });
+  const redisErrors = new Counter({
+    name: "geomark_redis_errors_total",
+    help: "Redis operation errors by bounded operation name.",
+    labelNames: ["operation"], // read | write | ratelimit
+    registers: [reg],
+  });
+  const ratelimitChecks = new Counter({
+    name: "geomark_ratelimit_checks_total",
+    help: "Rate-limit checks by backend and outcome.",
+    labelNames: ["backend", "outcome"], // redis | memory; allowed | rejected | fallback_allowed | fallback_rejected
+    registers: [reg],
+  });
+
   const ratelimitRejected = new Counter({
     name: "geomark_ratelimit_rejected_total",
     help: "Requests rejected by the per-IP rate limiter.",
@@ -186,6 +212,9 @@ export const createRegistry = (build: BuildInfo = { version: "dev", commit: "non
       versionInfo: datasetVersionInfo,
     },
     loader: { refreshes: loaderRefreshes, duration: loaderDuration },
+    cache: { events: cacheEvents },
+    redisErrors,
+    ratelimitChecks,
     ratelimitRejected,
     authRejected,
     buildInfo,

@@ -308,6 +308,43 @@ describe("coverage", () => {
   });
 });
 
+describe("random", () => {
+  test("returns bounded indexed samples", async () => {
+    const r = await service.random({
+      limit: 3,
+      country: undefined,
+      min_population: undefined,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.total).toBeLessThanOrEqual(3);
+    expect(r.data.places.length).toBe(r.data.total);
+    expect(r.data.places.length).toBeGreaterThan(0);
+  });
+
+  test("honors country and population filters", async () => {
+    const r = await service.random({
+      limit: 10,
+      country: "DE",
+      min_population: 1_000_000,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.places.length).toBeGreaterThan(0);
+    for (const place of r.data.places) {
+      expect(place.country_code).toBe("DE");
+      expect(place.population ?? 0).toBeGreaterThanOrEqual(1_000_000);
+    }
+  });
+
+  test("does not use full-table ORDER BY random", async () => {
+    const source = await Bun.file(
+      new URL("../src/service/random.ts", import.meta.url),
+    ).text();
+    expect(source.toLowerCase()).not.toContain("order by random()");
+  });
+});
+
 describe("batch", () => {
   test("mixed search + reverse", async () => {
     const r = await service.batch.run({

@@ -30,16 +30,30 @@ type MetaRow = {
   dataset_version: string | null;
   manifest_sha256: string | null;
   loaded_at: Date | null;
+  places_count: number;
+  addresses_count: number;
+  postal_codes_count: number;
+  aliases_count: number;
 };
 
 const readMeta = async (): Promise<MetaRow> => {
   const rows = await sql<MetaRow[]>`
-    SELECT dataset_version, manifest_sha256, loaded_at
+    SELECT
+      dataset_version, manifest_sha256, loaded_at,
+      places_count, addresses_count, postal_codes_count, aliases_count
     FROM geomark.meta
     WHERE id = TRUE
   `;
   return (
-    rows[0] ?? { dataset_version: null, manifest_sha256: null, loaded_at: null }
+    rows[0] ?? {
+      dataset_version: null,
+      manifest_sha256: null,
+      loaded_at: null,
+      places_count: 0,
+      addresses_count: 0,
+      postal_codes_count: 0,
+      aliases_count: 0,
+    }
   );
 };
 
@@ -97,29 +111,28 @@ const recordDatasetLoaded = (
 };
 
 /**
- * Read current dataset state from Postgres into the gauges. Used on the
- * skip-unchanged path so a process restart still surfaces the live counts
- * even though we didn't re-ingest. Cheap (a few SELECT COUNTs) but only
- * called from the refresh loop, not per request.
+ * Read materialized dataset state into gauges. Used on the skip-unchanged path
+ * so a process restart still surfaces the live counts even though we did not
+ * re-ingest. This stays O(1); no COUNT(*) over large tables.
  */
 const populateDatasetGaugesFromDb = async (
   m: MetricsRegistry,
   version: string,
   loadedAt: Date,
 ): Promise<void> => {
-  const [row] = await sql<
-    {
-      places: number;
-      addresses: number;
-      postal: number;
-      aliases: number;
-    }[]
-  >`
+  const [row] = await sql<{
+    places: number;
+    addresses: number;
+    postal: number;
+    aliases: number;
+  }[]>`
     SELECT
-      (SELECT COUNT(*)::int FROM geomark.places)        AS places,
-      (SELECT COUNT(*)::int FROM geomark.addresses)     AS addresses,
-      (SELECT COUNT(*)::int FROM geomark.postal_codes)  AS postal,
-      (SELECT COUNT(*)::int FROM geomark.place_aliases) AS aliases
+      places_count       AS places,
+      addresses_count    AS addresses,
+      postal_codes_count AS postal,
+      aliases_count      AS aliases
+    FROM geomark.meta
+    WHERE id = TRUE
   `;
   if (!row) return;
   m.dataset.places.set(row.places);

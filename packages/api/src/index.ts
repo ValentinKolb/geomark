@@ -9,11 +9,13 @@ import { config } from "./config";
 import { migrate } from "./migrate";
 import { setupLoader, stopLoader, loadOnce, bindMetrics } from "./loader";
 import { createApp } from "./app";
+import { closeRedis } from "./lib/redis";
 
 console.log("[Geomark] Starting…");
 console.log(`[Geomark] DB: ${config.databaseUrl.replace(/:[^:@]+@/, ":***@")}`);
 console.log(`[Geomark] Data source: ${config.dataUrl}`);
 console.log(`[Geomark] Auth: ${config.requiresAuth ? "API key required" : "open"}`);
+console.log(`[Geomark] Redis: ${config.redisUrl ? "enabled" : "disabled"}`);
 console.log(`[Geomark] Rate-limit: ${config.ratelimitPerMinute}/min/IP`);
 console.log(`[Geomark] Trusted proxy hops: ${config.trustedProxyHops}`);
 console.log(
@@ -41,7 +43,7 @@ const { app, metrics } = await createApp();
 bindMetrics(metrics);
 
 if (config.loadOnce) {
-  console.log("[Geomark] LOAD_ONCE=true — running single refresh and exiting.");
+  console.log("[Geomark] LOAD_ONCE enabled — running single refresh and exiting.");
   await loadOnce();
   process.exit(0);
 }
@@ -55,6 +57,7 @@ void setupLoader().catch((err) => {
 const shutdown = (signal: string): void => {
   console.log(`[Geomark] received ${signal}, shutting down…`);
   stopLoader();
+  closeRedis();
   process.exit(0);
 };
 process.on("SIGTERM", () => shutdown("SIGTERM"));

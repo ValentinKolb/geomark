@@ -37,11 +37,13 @@ describe("/health and /ready", () => {
       status: string;
       places_count: number;
       addresses_count: number;
+      aliases_count: number;
       data_loaded_at: string;
     };
     expect(j.status).toBe("ready");
     expect(j.places_count).toBe(6);
     expect(j.addresses_count).toBe(5);
+    expect(j.aliases_count).toBe(0);
     expect(typeof j.data_loaded_at).toBe("string");
   });
 
@@ -146,6 +148,23 @@ describe("/geo routes — happy paths", () => {
     const j = (await r.json()) as { countries: Record<string, string> };
     expect(j.countries["DE"]).toBe("address");
     expect(j.countries["FR"]).toBe("none");
+  });
+
+  test("GET /v1/random", async () => {
+    resetRateLimit();
+    const r = await req("/v1/random?limit=3&country=DE&min_population=1000");
+    expect(r.status).toBe(200);
+    expect(r.headers.get("Cache-Control") ?? "").toContain("max-age=");
+    const j = (await r.json()) as {
+      places: { country_code: string; population: number | null }[];
+      total: number;
+    };
+    expect(j.total).toBeLessThanOrEqual(3);
+    expect(j.places.length).toBe(j.total);
+    for (const place of j.places) {
+      expect(place.country_code).toBe("DE");
+      expect(place.population ?? 0).toBeGreaterThanOrEqual(1000);
+    }
   });
 
   test("POST /v1/batch", async () => {
@@ -274,6 +293,12 @@ describe("/geo routes — schema boundaries", () => {
     expect(r.status).toBe(400);
   });
 
+  test("random limit=0 → 400", async () => {
+    resetRateLimit();
+    const r = await req("/v1/random?limit=0");
+    expect(r.status).toBe(400);
+  });
+
   test("batch > 100 entries → 400", async () => {
     resetRateLimit();
     const entries = Array.from({ length: 101 }, () => ({
@@ -363,6 +388,8 @@ describe("OpenAPI + docs", () => {
       "/v1/countries/{code}",
       "/v1/postal",
       "/v1/coverage",
+      "/v1/attribution",
+      "/v1/random",
       "/v1/batch",
     ];
     for (const p of expected) {

@@ -125,7 +125,7 @@ const ENDPOINTS: { method: "GET" | "POST"; path: string; desc: string }[] = [
   { method: "GET",  path: "/v1/countries/{code}",      desc: "Country metadata for a 2-letter ISO 3166-1 alpha-2 code." },
   { method: "GET",  path: "/v1/coverage",              desc: "Per-country deepest available layer (address / place_only / none)." },
   { method: "GET",  path: "/v1/attribution",           desc: "Data sources, licenses, attribution strings — required reading before redistributing." },
-  { method: "GET",  path: "/v1/random",                desc: "Up to 5000 random places. Filter by country or min_population — useful for visualisations." },
+  { method: "GET",  path: "/v1/random",                desc: "Up to 5000 random places. Filter by country or min_population — indexed and short-cached for visualisations." },
 ];
 
 // ─── page ─────────────────────────────────────────────────────────────────
@@ -354,12 +354,12 @@ export default ssr(async (c) => {
               </span>
               <span class="coord flex items-center gap-1.5 text-[var(--color-bone-fade)]">
                 <span class="beacon-dot" />
-                GET /v1/random?limit=2000 · every 5s
+                GET /v1/random?limit=2000 · shared cache
               </span>
             </div>
             <LiveWorldMap />
             <div class="flex items-baseline justify-between mt-3 gap-3 flex-wrap coord text-[var(--color-bone-fade)]">
-              <span>2000 random places · re-sampled every 5 seconds</span>
+              <span>2000 random places · refreshed through a shared short cache</span>
               <span class="flex items-center gap-3">
                 <span class="flex items-center gap-1.5">
                   <span class="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-marker)]" />

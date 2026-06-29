@@ -31,22 +31,37 @@ const requireUrl = (key: string, value: string): string => {
   }
 };
 
+const enabled = (raw: string | undefined): boolean =>
+  raw === "1" || raw === "true";
+
+const optionalUrl = (key: string, value: string | undefined): string | undefined =>
+  value && value.length > 0 ? requireUrl(key, value) : undefined;
+
 export const config = {
   databaseUrl: required("DATABASE_URL"),
   dataUrl: requireUrl(
     "DATA_URL",
     process.env.DATA_URL ?? "http://data:3000/v1",
   ),
+  redisUrl: optionalUrl("REDIS_URL", process.env.REDIS_URL),
   apiKey: process.env.API_KEY,
   ratelimitPerMinute: requirePositiveInt(
     "RATELIMIT_PER_MINUTE",
     process.env.RATELIMIT_PER_MINUTE ?? "60",
   ),
+  randomCacheSeconds: requireNonNegativeInt(
+    "RANDOM_CACHE_SECONDS",
+    process.env.RANDOM_CACHE_SECONDS ?? "10",
+  ),
+  referenceCacheSeconds: requireNonNegativeInt(
+    "REFERENCE_CACHE_SECONDS",
+    process.env.REFERENCE_CACHE_SECONDS ?? "300",
+  ),
   refreshIntervalHours: requirePositiveInt(
     "REFRESH_INTERVAL_HOURS",
     process.env.REFRESH_INTERVAL_HOURS ?? "6",
   ),
-  loadOnce: process.env.LOAD_ONCE === "true",
+  loadOnce: enabled(process.env.LOAD_ONCE),
   /**
    * Number of trusted reverse proxies in front of this server.
    *   0 = direct exposure → ignore X-Forwarded-For, use socket IP
