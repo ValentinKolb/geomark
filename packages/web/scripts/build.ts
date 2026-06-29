@@ -7,14 +7,21 @@
  */
 process.env.NODE_ENV = "production";
 
-import { plugin } from "../config";
-import tailwindPlugin from "bun-plugin-tailwind";
+const [{ plugin }, { default: tailwindPlugin }] = await Promise.all([
+  import("../config"),
+  import("bun-plugin-tailwind"),
+]);
+
+const productionDefines = {
+  "process.env.NODE_ENV": JSON.stringify("production"),
+};
 
 const server = await Bun.build({
   entrypoints: ["src/server.tsx"],
   outdir: "dist",
   target: "bun",
   minify: true,
+  define: productionDefines,
   plugins: [plugin(), tailwindPlugin],
 });
 if (!server.success) {
@@ -26,6 +33,7 @@ const styles = await Bun.build({
   entrypoints: ["src/styles.css"],
   outdir: "dist",
   minify: true,
+  define: productionDefines,
   plugins: [tailwindPlugin],
 });
 if (!styles.success) {
@@ -34,3 +42,5 @@ if (!styles.success) {
 }
 
 console.log("✓ built dist/server.js + dist/styles.css");
+
+export {};

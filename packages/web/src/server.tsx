@@ -109,7 +109,7 @@ app
   .get("/data", ...Data)
   .get("/impressum", ...Impressum);
 
-const port = Number(process.env.PORT ?? 8088);
+const port = Number(process.env.PORT ?? 3000);
 console.log(`[geomark/web] http://localhost:${port}`);
 
 export default {
