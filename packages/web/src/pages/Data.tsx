@@ -28,7 +28,6 @@ type Manifest = {
   license: {
     geonames: string;
     openaddresses: string;
-    timezone_boundaries?: string;
   };
   files: {
     places: ManifestFile;

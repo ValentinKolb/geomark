@@ -27,7 +27,10 @@ export type AddressFileEntry = FileEntry & { country_code: string };
 export type Manifest = {
   built_at: string;
   version: string;
-  license: Record<string, string>;
+  license: {
+    geonames: string;
+    openaddresses: string;
+  };
   files: {
     places: FileEntry;
     postal_codes: FileEntry;
@@ -42,8 +45,8 @@ export type Manifest = {
 
 const LICENSES = {
   geonames: "CC-BY-4.0",
-  openaddresses: "see openaddresses-attribution.txt",
-  timezone_boundaries: "ODbL-1.0",
+  openaddresses:
+    "mixed per-source (CC0 / CC BY / ODbL / public domain); see https://github.com/openaddresses/openaddresses/blob/master/sources.csv",
 } as const;
 
 const ADDRESS_FILE = /^addresses-([a-z]{2})\.csv\.zst$/;

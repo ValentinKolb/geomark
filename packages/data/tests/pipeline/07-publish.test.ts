@@ -142,7 +142,11 @@ describe("publishStage — manifest", () => {
     expect(manifest.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(manifest.built_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(manifest.sources).toEqual(SOURCES);
-    expect(manifest.license).toMatchObject({ geonames: "CC-BY-4.0" });
+    expect(manifest.license).toEqual({
+      geonames: "CC-BY-4.0",
+      openaddresses:
+        "mixed per-source (CC0 / CC BY / ODbL / public domain); see https://github.com/openaddresses/openaddresses/blob/master/sources.csv",
+    });
 
     expect(manifest.files.places.line_count).toBe(4);
     expect(manifest.files.places.filename).toBe("places.csv.zst");
