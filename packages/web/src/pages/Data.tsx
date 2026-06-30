@@ -67,13 +67,13 @@ const fmtNum = (n: number) => n.toLocaleString("en-US");
 // hex digests displayed in a tight column.
 const shortSha = (sha: string) => text.truncate(sha, 12, "middle");
 
-// ─── per-file schema notes (kept brief; full DDL in packages/api/src/migrate.ts) ─
+// ─── per-file schema notes (generated CSV headers) ───────────────────────
 
 type SchemaField = { name: string; type: string; note?: string };
 
 const SCHEMAS: Record<string, SchemaField[]> = {
   places: [
-    { name: "gid", type: "TEXT", note: "geonames:<geonameid>" },
+    { name: "geonameid", type: "BIGINT", note: "loaded as gid geonames:<geonameid>" },
     { name: "name", type: "TEXT" },
     { name: "asciiname", type: "TEXT" },
     { name: "latitude", type: "DOUBLE PRECISION" },
@@ -93,13 +93,8 @@ const SCHEMAS: Record<string, SchemaField[]> = {
     { name: "place_name", type: "TEXT" },
     { name: "admin_name1", type: "TEXT" },
     { name: "admin_code1", type: "TEXT" },
-    { name: "admin_name2", type: "TEXT" },
-    { name: "admin_code2", type: "TEXT" },
-    { name: "admin_name3", type: "TEXT" },
-    { name: "admin_code3", type: "TEXT" },
     { name: "latitude", type: "DOUBLE PRECISION" },
     { name: "longitude", type: "DOUBLE PRECISION" },
-    { name: "accuracy", type: "INTEGER" },
   ],
   countries: [
     { name: "code", type: "TEXT", note: "ISO 3166-1 alpha-2" },
@@ -108,22 +103,21 @@ const SCHEMAS: Record<string, SchemaField[]> = {
     { name: "capital", type: "TEXT" },
     { name: "continent", type: "TEXT" },
     { name: "currency_code", type: "TEXT" },
-    { name: "languages", type: "TEXT[]" },
-    { name: "tld", type: "TEXT" },
+    { name: "languages", type: "TEXT", note: "semicolon-separated; loaded as TEXT[]" },
+    { name: "calling_code", type: "TEXT" },
+    { name: "flag_emoji", type: "TEXT" },
   ],
   addresses: [
-    { name: "gid", type: "TEXT", note: "oa:<cc>:<hash>" },
+    { name: "gid", type: "TEXT", note: "oa:<cc>:<hash|row>" },
     { name: "latitude", type: "DOUBLE PRECISION" },
     { name: "longitude", type: "DOUBLE PRECISION" },
-    { name: "country_code", type: "TEXT" },
     { name: "house_number", type: "TEXT" },
     { name: "street", type: "TEXT" },
     { name: "unit", type: "TEXT" },
     { name: "city", type: "TEXT" },
-    { name: "district", type: "TEXT" },
-    { name: "region", type: "TEXT" },
     { name: "postcode", type: "TEXT" },
-    { name: "label", type: "TEXT", note: "synthesized full-line address" },
+    { name: "region", type: "TEXT" },
+    { name: "country_code", type: "TEXT" },
   ],
   aliases: [
     { name: "geonameid", type: "BIGINT", note: "matches places.gid" },
@@ -306,10 +300,8 @@ export default ssr(async (c) => {
                 CC0, CC BY, ODbL, public domain.
               </p>
               <p class="text-sm text-[var(--color-bone-dim)] leading-relaxed">
-                Each country's bundle ships with its source attribution
-                file — see{" "}
-                <code class="code-inline">openaddresses-attribution.txt</code>{" "}
-                in the data archive.
+                Source licenses vary by country and provider. Check the
+                attribution endpoint before redistributing address data.
               </p>
             </a>
           </div>
@@ -432,7 +424,7 @@ export default ssr(async (c) => {
                   <i class="ti ti-download" aria-hidden="true" /> 1 · download
                 </span>
                 <CopyButton
-                  text={`curl -O ${baseUrl}/places.csv.zst\ncurl -O ${baseUrl}/postal_codes.csv.zst\ncurl -O ${baseUrl}/countries.csv.zst`}
+                  text={`curl -O ${baseUrl}/latest.json\njq -r '[.files.places, .files.postal_codes, .files.countries, (.files.addresses[]), (.files.aliases // empty)][] | .filename' latest.json | while read -r f; do curl -O ${baseUrl}/$f; done`}
                 />
               </div>
               <pre class="code-block overflow-x-auto">
@@ -440,9 +432,8 @@ export default ssr(async (c) => {
                   lang="curl"
                   code={`# pull the current bundle
 $ curl -O ${baseUrl}/latest.json
-$ curl -O ${baseUrl}/places.csv.zst
-$ curl -O ${baseUrl}/postal_codes.csv.zst
-$ curl -O ${baseUrl}/countries.csv.zst`}
+$ jq -r '[.files.places, .files.postal_codes, .files.countries, (.files.addresses[]), (.files.aliases // empty)][] | .filename' latest.json \\
+  | while read -r f; do curl -O ${baseUrl}/$f; done`}
                 />
               </pre>
             </div>
@@ -454,39 +445,40 @@ $ curl -O ${baseUrl}/countries.csv.zst`}
                   <i class="ti ti-shield-check" aria-hidden="true" /> 2 · verify + decompress
                 </span>
                 <CopyButton
-                  text={`shasum -a 256 -c <(jq -r '.files | to_entries[] | "\\(.value.sha256)  \\(.value.filename)"' latest.json | grep -v null)\nzstd -d *.csv.zst`}
+                  text={`jq -r '[.files.places, .files.postal_codes, .files.countries, (.files.addresses[]), (.files.aliases // empty)][] | "\\(.sha256)  \\(.filename)"' latest.json | shasum -a 256 -c -\nzstd -d *.csv.zst`}
                 />
               </div>
               <pre class="code-block overflow-x-auto">
                 <Code
                   lang="curl"
                   code={`# check sha256 against the manifest
-$ shasum -a 256 places.csv.zst
-8b69d2aa68d05f25bd77b1ecbc4e4384b2fd1096b54c268fa4ada10115f99981  places.csv.zst
+$ jq -r '[.files.places, .files.postal_codes, .files.countries, (.files.addresses[]), (.files.aliases // empty)][] | "\\(.sha256)  \\(.filename)"' latest.json \\
+  | shasum -a 256 -c -
 
 # decompress
-$ zstd -d places.csv.zst postal_codes.csv.zst countries.csv.zst`}
+$ zstd -d *.csv.zst`}
                 />
               </pre>
             </div>
 
-            {/* Step 3: load into Postgres */}
+            {/* Step 3: query locally */}
             <div class="panel">
               <div class="flex items-baseline justify-between mb-3 gap-3 flex-wrap">
                 <span class="mono-cap flex items-center gap-2">
-                  <i class="ti ti-database-import" aria-hidden="true" /> 3 · load into Postgres
+                  <i class="ti ti-database-import" aria-hidden="true" /> 3 · query locally
                 </span>
                 <CopyButton
-                  text={`psql -c "\\\\copy geomark.places FROM 'places.csv' WITH (FORMAT csv, HEADER)"`}
+                  text={`duckdb -c "SELECT name, country_code, population FROM read_csv_auto('places.csv') ORDER BY population DESC LIMIT 10"`}
                 />
               </div>
               <pre class="code-block overflow-x-auto">
                 <Code
                   lang="curl"
-                  code={`# table DDL: see packages/api/src/migrate.ts
-$ psql -c "\\copy geomark.places FROM 'places.csv' WITH (FORMAT csv, HEADER)"
-$ psql -c "\\copy geomark.postal_codes FROM 'postal_codes.csv' WITH (FORMAT csv, HEADER)"
-$ psql -c "\\copy geomark.countries FROM 'countries.csv' WITH (FORMAT csv, HEADER)"`}
+                  code={`# query the CSVs directly, or create staging tables with the headers below
+$ duckdb -c "SELECT name, country_code, population FROM read_csv_auto('places.csv') ORDER BY population DESC LIMIT 10"
+
+# Geomark's API loader handles the Postgres transform path
+$ DATA_URL=${baseUrl} bun --filter @geomark/api start`}
                 />
               </pre>
             </div>
@@ -510,10 +502,10 @@ $ psql -c "\\copy geomark.countries FROM 'countries.csv' WITH (FORMAT csv, HEADE
           />
 
           <p class="text-sm text-[var(--color-bone-dim)] leading-relaxed mb-6 md:mb-8 max-w-2xl">
-            Every CSV is UTF-8, comma-separated, with a header row. Types
-            below match the Postgres DDL the API runs (see{" "}
-            <code class="code-inline">packages/api/src/migrate.ts</code>);
-            most loaders will accept the data as plain text.
+            Every CSV is UTF-8, comma-separated, with a header row. Columns
+            below match the generated CSV headers; types describe how the
+            API loader casts values into Postgres. Generated fields such as
+            geometry columns and address labels are added during ingest.
           </p>
 
           <div class="space-y-5 md:space-y-6">
@@ -549,7 +541,7 @@ $ psql -c "\\copy geomark.countries FROM 'countries.csv' WITH (FORMAT csv, HEADE
             <ul class="space-y-3 text-sm text-[var(--color-bone-dim)] leading-relaxed">
               {[
                 ["GeoNames data is CC BY 4.0", "You can use, share, and adapt it commercially. Provide attribution: 'GeoNames — geonames.org (CC BY 4.0)' somewhere visible to your users."],
-                ["OpenAddresses is mixed", "Per-country files have per-source licenses. The bundle ships an attribution.txt — preserve it when redistributing."],
+                ["OpenAddresses is mixed", "Per-country files have per-source licenses. Check /v1/attribution before redistributing address data."],
                 ["Geomark code is MIT", "The API and tooling are MIT. The data above is not — its license follows the upstream sources."],
                 ["Programmatic attribution string", "GET /v1/attribution returns ready-to-paste credit text in JSON. Copy it into your About page or footer."],
               ].map(([title, desc]) => (

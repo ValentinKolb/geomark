@@ -392,7 +392,7 @@ export default ssr(async (c) => {
 
               <p class="text-[var(--color-bone-dim)] leading-relaxed">
                 The same binary that ships with the source, running at{" "}
-                <code class="code-inline">geomark.dev/api</code>. Free,
+                <code class="code-inline">geomark.dev/v1</code>. Free,
                 rate-limited per IP, no account required.
               </p>
 

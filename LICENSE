@@ -13,7 +13,7 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
 The data redistributed by this software is licensed by the upstream sources
-listed at `/api/v1/attribution` (primarily GeoNames under CC BY 4.0 and
+listed at `GET /v1/attribution` (primarily GeoNames under CC BY 4.0 and
 OpenAddresses contributors under per-source licenses). The MIT license applies
 to the code in this repository; downstream redistributors must preserve the
 upstream attribution per those licenses.

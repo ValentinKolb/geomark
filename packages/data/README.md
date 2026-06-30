@@ -28,15 +28,17 @@ bun run start    # production
 
 ```
 output/
-├── manifest.json       Version + per-file SHA256 + row counts
+├── latest.json         Version + per-file SHA256 + row counts
 ├── places.csv.zst      ~210k cities (cities500 default)
-├── postal.csv.zst      ~1.5M postal codes (allCountries default)
+├── postal_codes.csv.zst
+│                       ~1.5M postal codes (allCountries default)
 ├── countries.csv.zst   ISO 3166 country metadata
-├── addresses.csv.zst   OpenAddresses
+├── addresses-{cc}.csv.zst
+│                       OpenAddresses, one file per country
 └── aliases.csv.zst     Optional, only when GEONAMES_ALIASES_URL is set
 ```
 
-The manifest is what the API watches — when its hash changes, the API
+`latest.json` is what the API watches — when its hash changes, the API
 re-ingests in the background and atomically swaps the dataset.
 
 ## Pipeline
