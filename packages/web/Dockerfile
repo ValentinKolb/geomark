@@ -25,7 +25,13 @@ COPY packages/shared ./packages/shared
 COPY packages/web/package.json ./packages/web/package.json
 COPY --from=build /app/packages/web/dist ./packages/web/dist
 COPY package.json ./
+RUN chown -R bun:bun /app
+USER bun
 
 WORKDIR /app/packages/web
 EXPOSE 3000/tcp
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD bun -e 'fetch("http://localhost:3000/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'
+
 CMD ["bun", "dist/server.js"]

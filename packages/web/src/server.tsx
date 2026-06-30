@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import tailwindPlugin from "bun-plugin-tailwind";
 import { config as ssrConfig, routes } from "../config";
 import { config } from "./config";
@@ -44,6 +45,14 @@ if (!build.success) {
 // ─── app ──────────────────────────────────────────────────────────────────
 const app = new Hono()
   .use(logger())
+  .use(
+    "*",
+    secureHeaders({
+      xFrameOptions: "DENY",
+      xContentTypeOptions: "nosniff",
+      referrerPolicy: "strict-origin-when-cross-origin",
+    }),
+  )
   .route("/_ssr", routes(ssrConfig));
 
 // One static route per emitted asset (CSS, fonts). Long-cache everything
