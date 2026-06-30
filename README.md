@@ -68,6 +68,11 @@ curl http://localhost:4000/ready
 # {"status":"ready",   ...}  → ready to query
 ```
 
+For a public Traefik deployment, use `compose.prod.yml`. It requires
+`POSTGRES_PASSWORD`, keeps metrics disabled by default, and routes
+`geomark.dev/v1/*` directly to the API while the website remains on
+`geomark.dev`.
+
 ### Configuration
 
 The full env surface is documented per package

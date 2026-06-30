@@ -20,9 +20,10 @@
 #
 # Optional env (sensible defaults inline; override via shell-export):
 #   DOMAIN                  default "geomark.dev"
-#   POSTGRES_PASSWORD       default "CHANGE-ME"  ← rotate before exposing!
+#   POSTGRES_PASSWORD       required; no safe production default
 #   API_KEY                 gate the public API (default: open)
-#   METRICS_TOKEN           gate /metrics on both api + data (default: open)
+#   METRICS_ENABLED         default "false" in production compose
+#   METRICS_TOKEN           gate /metrics on both api + data when enabled
 #   TRAEFIK_NETWORK         name of the external Traefik network (default "traefik")
 #   TRAEFIK_CERT_RESOLVER   name of the Traefik acme cert resolver (default "le")
 #   GEONAMES_*_URL          override the GeoNames source defaults
@@ -35,7 +36,7 @@
 x-postgres-creds: &postgres-creds
   POSTGRES_USER: geomark
   POSTGRES_DB: geomark
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE-ME}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to a strong value}
 
 x-data-sources: &data-sources
   OPENADDRESSES_URL: ${OPENADDRESSES_URL:?Set OPENADDRESSES_URL to a bundle ZIP URL}
@@ -45,7 +46,7 @@ x-data-sources: &data-sources
   GEONAMES_ALIASES_URL: ${GEONAMES_ALIASES_URL:-https://download.geonames.org/export/dump/alternateNamesV2.zip}
 
 x-metrics-config: &metrics-config
-  METRICS_ENABLED: ${METRICS_ENABLED:-true}
+  METRICS_ENABLED: ${METRICS_ENABLED:-false}
   METRICS_TOKEN: ${METRICS_TOKEN:-}
   METRICS_PATH: /metrics
 
@@ -135,6 +136,13 @@ services:
       - traefik.http.routers.geomark-api.rule=Host(`api.${DOMAIN:-geomark.dev}`)
       - traefik.http.routers.geomark-api.entrypoints=websecure
       - traefik.http.routers.geomark-api.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      # Keep the public docs/examples and browser islands fast: apex /v1/*
+      # is routed straight to API, while the web container keeps a fallback
+      # proxy for local compose and non-Traefik deployments.
+      - traefik.http.routers.geomark-api-apex.rule=Host(`${DOMAIN:-geomark.dev}`) && PathPrefix(`/v1`)
+      - traefik.http.routers.geomark-api-apex.entrypoints=websecure
+      - traefik.http.routers.geomark-api-apex.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      - traefik.http.routers.geomark-api-apex.priority=100
       - traefik.http.services.geomark-api.loadbalancer.server.port=3000
 
   web:
@@ -142,12 +150,10 @@ services:
       context: .
       dockerfile: packages/web/Dockerfile
     environment:
-      # Web's API_URL is the *external* api host because the client-side
-      # showcase + LiveWorldMap fetch from the browser, not from web's
-      # server-side context. SSR-side fetches still work because Hono
-      # follows the same URL.
-      API_URL: ${API_URL:-https://api.${DOMAIN:-geomark.dev}}
-      DATA_URL: ${DATA_URL:-https://data.${DOMAIN:-geomark.dev}/v1}
+      # Server-side status/manifest fetches and the web fallback proxy use
+      # internal service DNS. Public copy-paste URLs still point at Traefik.
+      API_URL: ${API_URL:-http://api:3000}
+      DATA_URL: ${DATA_URL:-http://data:3000/v1}
       DATA_PUBLIC_URL: ${DATA_PUBLIC_URL:-https://data.${DOMAIN:-geomark.dev}/v1}
     networks: [internal, traefik]
     depends_on:

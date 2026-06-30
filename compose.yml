@@ -84,6 +84,8 @@ services:
       dockerfile: packages/web/Dockerfile
     environment:
       API_URL: ${API_URL:-http://api:3000}
+      DATA_URL: ${DATA_URL:-http://data:3000/v1}
+      DATA_PUBLIC_URL: ${DATA_PUBLIC_URL:-http://localhost:4002/v1}
     ports:
       - "${WEB_HOST_PORT:-4001}:3000"
     depends_on:

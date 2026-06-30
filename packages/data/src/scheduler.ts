@@ -21,6 +21,9 @@ import type { DataMetricsRegistry } from "./metrics/registry";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+// Node/Bun timers are backed by a signed 32-bit delay. Larger values are
+// clamped to 1ms, so long refresh intervals must be split into safe chunks.
+export const MAX_TIMEOUT_MS = 2_147_483_647;
 
 let stopped = false;
 let pendingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -108,25 +111,38 @@ const runBuild = async (opts: { freshStaging: boolean }): Promise<void> => {
 
 const refreshIntervalMs = (): number => config.refreshIntervalDays * ONE_DAY_MS;
 
+export const nextTimeoutDelay = (targetAtMs: number, nowMs = Date.now()): number =>
+  Math.min(Math.max(0, targetAtMs - nowMs), MAX_TIMEOUT_MS);
+
 const scheduleNext = (delayMs: number): void => {
   if (stopped) return;
   const minutes = Math.round(delayMs / 60_000);
   console.log(`[Geomark Data] next build in ${minutes} min`);
-  pendingTimer = setTimeout(async () => {
+  const targetAt = Date.now() + delayMs;
+  const armTimer = (): void => {
     if (stopped) return;
-    pendingTimer = null;
-    try {
-      await runBuild({ freshStaging: true });
-      console.log(
-        `[Geomark Data] build complete, next refresh in ${config.refreshIntervalDays} day(s)`,
-      );
-      scheduleNext(refreshIntervalMs());
-    } catch (err) {
-      console.error("[Geomark Data] build failed:", err);
-      const retry = Math.min(ONE_HOUR_MS, refreshIntervalMs() / 24);
-      scheduleNext(retry);
-    }
-  }, delayMs);
+    const safeDelay = nextTimeoutDelay(targetAt);
+    pendingTimer = setTimeout(async () => {
+      if (stopped) return;
+      pendingTimer = null;
+      if (Date.now() < targetAt) {
+        armTimer();
+        return;
+      }
+      try {
+        await runBuild({ freshStaging: true });
+        console.log(
+          `[Geomark Data] build complete, next refresh in ${config.refreshIntervalDays} day(s)`,
+        );
+        scheduleNext(refreshIntervalMs());
+      } catch (err) {
+        console.error("[Geomark Data] build failed:", err);
+        const retry = Math.min(ONE_HOUR_MS, refreshIntervalMs() / 24);
+        scheduleNext(retry);
+      }
+    }, safeDelay);
+  };
+  armTimer();
 };
 
 /**

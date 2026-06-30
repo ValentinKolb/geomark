@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { logger } from "hono/logger";
 import tailwindPlugin from "bun-plugin-tailwind";
 import { config as ssrConfig, routes } from "../config";
@@ -60,16 +60,37 @@ for (const [name, a] of assets) {
   );
 }
 
-// Same-origin proxy to the Geomark API. Forwards verbatim — the API
-// container itself serves under /v1, so paths pass through unchanged.
-// In production behind Traefik, /api/* routes directly to the api service
-// and this proxy is never reached.
-app.all("/api/*", async (c) => {
+const HOP_BY_HOP_HEADERS = new Set([
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "host",
+]);
+
+const forwardHeaders = (headers: Headers): Headers => {
+  const out = new Headers(headers);
+  for (const h of HOP_BY_HOP_HEADERS) out.delete(h);
+  return out;
+};
+
+// Same-origin fallback proxy to the Geomark API. Production Traefik routes
+// apex /v1/* directly to the API for the fast path; this keeps local compose
+// and non-Traefik self-hosting working with the same browser-visible paths.
+const proxyToApi = async (c: Context, stripPrefix = "") => {
   const url = new URL(c.req.url);
-  const upstream = `${config.apiUrl}${url.pathname}${url.search}`;
+  const pathname =
+    stripPrefix && url.pathname.startsWith(stripPrefix)
+      ? (url.pathname.slice(stripPrefix.length) || "/")
+      : url.pathname;
+  const upstream = `${config.apiUrl}${pathname}${url.search}`;
   const init: RequestInit = {
     method: c.req.method,
-    headers: c.req.raw.headers,
+    headers: forwardHeaders(c.req.raw.headers),
     body:
       c.req.method === "GET" || c.req.method === "HEAD"
         ? undefined
@@ -80,7 +101,11 @@ app.all("/api/*", async (c) => {
   } catch {
     return c.json({ error: "service unavailable" }, 503);
   }
-});
+};
+
+app.all("/v1/*", (c) => proxyToApi(c));
+app.all("/ready", (c) => proxyToApi(c));
+app.all("/api/*", (c) => proxyToApi(c, "/api"));
 
 // Crosshair favicon — same registration-mark design as the page cursor,
 // thicker stroke + rounded caps so it stays legible at 16×16.

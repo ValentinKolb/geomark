@@ -16,7 +16,7 @@ bun run start    # production
 | Variable | Default | Description |
 |---|---|---|
 | `OUTPUT_DIR`               | `/data`    | Where compressed CSVs are written. The compose volume `geomark-data` is mounted here. |
-| `REFRESH_INTERVAL_DAYS`    | `30`       | How often to re-download upstream sources. |
+| `REFRESH_INTERVAL_DAYS`    | `30`       | How often to re-download upstream sources. Long intervals are split into safe timer chunks internally. |
 | `OPENADDRESSES_URL`        | (required) | URL of an OpenAddresses bundle ZIP. |
 | `GEONAMES_CITIES_URL`      | `https://download.geonames.org/export/dump/cities500.zip` | Pass any URL ending in a GeoNames cities ZIP filename to override (e.g. `cities15000.zip` for testing). |
 | `GEONAMES_POSTAL_URL`      | `https://download.geonames.org/export/zip/allCountries.zip` | Override with a per-country file URL (e.g. `https://download.geonames.org/export/zip/DE.zip`). |

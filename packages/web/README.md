@@ -17,14 +17,18 @@ bun run typecheck  # tsc --noEmit
 | Variable | Default | Description |
 |---|---|---|
 | `PORT`    | `3000`                  | HTTP port. |
-| `API_URL` | `http://localhost:4000` | Upstream API used by SSR (`/ready`, `/v1/random`) and proxied through `/api/*`. In production behind Traefik, `/api/*` typically routes directly to the API container, bypassing this proxy. |
+| `API_URL` | `http://localhost:4000` | Upstream API used by SSR status fetches and the same-origin fallback proxy for `/v1/*`, `/ready`, and `/api/*`. |
+| `DATA_URL` | `http://localhost:14002/v1` | Server-side data manifest URL used by `/data`. |
+| `DATA_PUBLIC_URL` | `https://data.geomark.dev/v1` | Public data bundle URL rendered in copy-paste examples. |
 
 ## Routes
 
 | Path | Description |
 |---|---|
 | `/`            | Landing page with live API showcase |
-| `/api/*`       | Same-origin proxy to the upstream API (dev convenience; in prod Traefik handles this) |
+| `/v1/*`        | Same-origin API fallback proxy. In production Traefik should route this directly to API. |
+| `/ready`       | Same-origin API readiness fallback proxy. |
+| `/api/*`       | Legacy same-origin proxy to the upstream API, with `/api` stripped before forwarding. |
 | `/health`      | Liveness probe |
 | `/styles.css`  | Compiled CSS (incl. Tabler icon webfont, Fraunces, Geist Mono) |
 | `/favicon.svg` | Crosshair favicon |
