@@ -4,6 +4,7 @@ import type { Stage } from "./runner";
 
 export type DownloadConfig = {
   urls: string[];
+  bearerTokens?: Record<string, string | undefined>;
 };
 
 export const targetPath = (stagingDir: string, url: string): string => {
@@ -30,9 +31,15 @@ export const targetPath = (stagingDir: string, url: string): string => {
 const downloadOne = async (
   url: string,
   destPath: string,
+  bearerToken?: string,
   signal?: AbortSignal,
 ): Promise<void> => {
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, {
+    signal,
+    ...(bearerToken
+      ? { headers: { Authorization: `Bearer ${bearerToken}` } }
+      : {}),
+  });
   if (!res.ok) {
     throw new Error(
       `download failed: ${url} (${res.status} ${res.statusText})`,
@@ -118,7 +125,7 @@ export const downloadStage = (cfg: DownloadConfig): Stage => {
           continue;
         }
         ctx.log(`[download] ${url} → ${dest}`);
-        await downloadOne(url, dest, ctx.signal);
+        await downloadOne(url, dest, cfg.bearerTokens?.[url], ctx.signal);
       }
     },
   };

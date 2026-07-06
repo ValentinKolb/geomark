@@ -35,6 +35,7 @@ services:
       dockerfile: packages/data/Dockerfile
     environment:
       OPENADDRESSES_URL: ${OPENADDRESSES_URL}
+      OPENADDRESSES_TOKEN: ${OPENADDRESSES_TOKEN:-}
       REFRESH_INTERVAL_DAYS: ${REFRESH_INTERVAL_DAYS:-30}
       OUTPUT_DIR: /data
       # Optional source overrides — defaults (cities500 + allCountries +

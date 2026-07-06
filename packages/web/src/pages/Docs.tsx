@@ -509,7 +509,7 @@ const QUICK_START = `# 1. clone the repo
 $ git clone https://github.com/valentinkolb/geomark
 $ cd geomark
 
-# 2. set the OpenAddresses bundle URL (required)
+# 2. set the OpenAddresses bundle or Batch collection URL (required)
 $ echo 'OPENADDRESSES_URL=https://your-bundle-host/oa.zip' > .env
 
 # 3. boot
@@ -743,9 +743,10 @@ export default ssr(async (c) => {
                 ["RANDOM_CACHE_SECONDS", "Shared TTL for /v1/random responses. Default 10; set 0 to disable."],
                 ["REFERENCE_CACHE_SECONDS", "Shared TTL for stable reference endpoints such as countries and coverage. Default 300; set 0 to disable."],
                 ["TRUSTED_PROXY_HOPS", "Number of X-Forwarded-For hops to trust. 0 for direct, 1 behind a single reverse proxy."],
-                ["OPENADDRESSES_URL", "Required. URL of an OpenAddresses bundle ZIP."],
+                ["OPENADDRESSES_URL", "Required. URL of an OpenAddresses bundle ZIP or Batch collection endpoint."],
+                ["OPENADDRESSES_TOKEN", "Optional bearer token for authenticated OpenAddresses Batch downloads. Keep it outside Git."],
                 ["POSTGRES_PASSWORD", "Required by compose.prod.yml. Set a strong value before public deployment."],
-                ["GEONAMES_CITIES_URL", "Override for smaller subsets. Default: cities500.zip from GeoNames."],
+                ["GEONAMES_CITIES_URL", "Override for smaller or larger place sets. Default: cities500.zip; use allCountries.zip for the largest build."],
                 ["GEONAMES_POSTAL_URL", "Override for per-country postal codes. Default: allCountries.zip."],
                 ["GEONAMES_ALIASES_URL", "Optional. When set, the loader also ingests alternateNamesV2 (multilingual aliases + IATA/ICAO/Wikipedia)."],
                 ["REFRESH_INTERVAL_DAYS", "How often the loader re-checks upstream sources. Default 30."],

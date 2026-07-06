@@ -3,6 +3,7 @@ import { mkdir, readdir, copyFile } from "node:fs/promises";
 import type { Stage } from "./runner";
 
 const SENTINEL = ".done";
+const ZIP_MAGIC = "504b0304";
 
 export const isUnsafePath = (entry: string): boolean => {
   // Reject zip entries that would escape the destination directory:
@@ -55,6 +56,14 @@ const unzipOne = async (zipPath: string, outDir: string): Promise<void> => {
   }
 };
 
+export const isZipFile = async (path: string): Promise<boolean> => {
+  if (path.toLowerCase().endsWith(".zip")) return true;
+  const bytes = new Uint8Array(await Bun.file(path).slice(0, 4).arrayBuffer());
+  let hex = "";
+  for (const b of bytes) hex += b.toString(16).padStart(2, "0");
+  return hex === ZIP_MAGIC;
+};
+
 /**
  * Extract every .zip in `<staging>/raw/` into `<staging>/extracted/`, and
  * copy plain .txt files straight through (some GeoNames sources like
@@ -70,14 +79,16 @@ export const extractStage: Stage = {
     const outDir = join(ctx.stagingDir, "extracted");
     await mkdir(outDir, { recursive: true });
 
-    const entries = await readdir(rawDir);
+    const entries = await readdir(rawDir, { withFileTypes: true });
     let zips = 0;
     let copies = 0;
 
-    for (const f of entries) {
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const f = entry.name;
       const path = join(rawDir, f);
       const lower = f.toLowerCase();
-      if (lower.endsWith(".zip")) {
+      if (await isZipFile(path)) {
         ctx.log(`[extract] unzip ${f}`);
         await unzipOne(path, outDir);
         zips++;

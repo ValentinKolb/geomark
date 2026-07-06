@@ -21,10 +21,11 @@
 #   GEOMARK_VERSION         Published image tag, for example "0.1.1".
 #   DOMAIN                  Public apex domain, for example "geomark.dev".
 #   POSTGRES_PASSWORD       Strong database password. No production default.
-#   OPENADDRESSES_URL       URL of an OpenAddresses bundle ZIP.
+#   OPENADDRESSES_URL       URL of an OpenAddresses ZIP or Batch collection.
 #
 # Optional env (sensible defaults inline; override via shell-export):
 #   GEOMARK_IMAGE_REGISTRY  default "ghcr.io/valentinkolb"
+#   OPENADDRESSES_TOKEN     bearer token for authenticated Batch collections
 #   API_KEY                 gate the public API (default: open)
 #   METRICS_ENABLED         default "false" in production compose
 #   METRICS_TOKEN           gate /metrics on both api + data when enabled
@@ -43,8 +44,9 @@ x-postgres-creds: &postgres-creds
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to a strong value}
 
 x-data-sources: &data-sources
-  OPENADDRESSES_URL: ${OPENADDRESSES_URL:?Set OPENADDRESSES_URL to a bundle ZIP URL}
-  GEONAMES_CITIES_URL: ${GEONAMES_CITIES_URL:-https://download.geonames.org/export/dump/cities500.zip}
+  OPENADDRESSES_URL: ${OPENADDRESSES_URL:?Set OPENADDRESSES_URL to a bundle ZIP or Batch collection URL}
+  OPENADDRESSES_TOKEN: ${OPENADDRESSES_TOKEN:-}
+  GEONAMES_CITIES_URL: ${GEONAMES_CITIES_URL:-https://download.geonames.org/export/dump/allCountries.zip}
   GEONAMES_POSTAL_URL: ${GEONAMES_POSTAL_URL:-https://download.geonames.org/export/zip/allCountries.zip}
   GEONAMES_COUNTRY_INFO_URL: ${GEONAMES_COUNTRY_INFO_URL:-https://download.geonames.org/export/dump/countryInfo.txt}
   GEONAMES_ALIASES_URL: ${GEONAMES_ALIASES_URL:-https://download.geonames.org/export/dump/alternateNamesV2.zip}

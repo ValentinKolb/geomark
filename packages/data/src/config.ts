@@ -4,7 +4,7 @@ const required = (key: string): string => {
   return v;
 };
 
-const requireUrlWithFilename = (key: string, value: string): string => {
+const requireUrlWithPathSegment = (key: string, value: string): string => {
   let pathname: string;
   try {
     pathname = new URL(value).pathname;
@@ -12,13 +12,25 @@ const requireUrlWithFilename = (key: string, value: string): string => {
     throw new Error(`[Geomark Data] ${key} is not a valid URL: ${value}`);
   }
   const last = pathname.split("/").filter(Boolean).pop() ?? "";
+  if (!last) {
+    throw new Error(
+      `[Geomark Data] ${key} must be a URL whose path ends in a file or endpoint name ` +
+        `(e.g. "https://example.com/data.zip" or ".../collections/1/data"). Got: ${value}`,
+    );
+  }
+  return value;
+};
+
+const requireUrlWithFilename = (key: string, value: string): string => {
+  const out = requireUrlWithPathSegment(key, value);
+  const last = new URL(value).pathname.split("/").filter(Boolean).pop() ?? "";
   if (!last.includes(".")) {
     throw new Error(
       `[Geomark Data] ${key} must be a URL whose path ends in a filename ` +
         `(e.g. "https://example.com/data.zip"). Got: ${value}`,
     );
   }
-  return value;
+  return out;
 };
 
 // Empty-string fallback (||, not ??) so a `KEY=""` env var (e.g. from
@@ -61,10 +73,12 @@ export const config = {
     "GEONAMES_COUNTRY_INFO_URL",
     countryInfo,
   ),
-  openaddressesUrl: requireUrlWithFilename(
+  openaddressesUrl: requireUrlWithPathSegment(
     "OPENADDRESSES_URL",
     required("OPENADDRESSES_URL"),
   ),
+  /** Bearer token for authenticated OpenAddresses Batch collection downloads. */
+  openaddressesToken: process.env.OPENADDRESSES_TOKEN || undefined,
   /** Empty string when not configured. Validated lazily by the pipeline. */
   geonamesAliasesUrl: aliases
     ? requireUrlWithFilename("GEONAMES_ALIASES_URL", aliases)

@@ -38,12 +38,12 @@ const makeCtx = (): StageCtx => ({
   log: () => {},
 });
 
-const stubFetch = (responses: Record<string, () => Response>): void => {
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
+const stubFetch = (responses: Record<string, (init?: RequestInit) => Response>): void => {
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
     const builder = responses[url];
     if (!builder) throw new Error(`unstubbed fetch: ${url}`);
-    return builder();
+    return builder(init);
   }) as typeof fetch;
 };
 
@@ -134,6 +134,57 @@ describe("downloadStage", () => {
     expect(targetPath("/staging", "https://example.com/data.zip")).toMatch(
       /\/staging\/raw\/data\.zip$/,
     );
+  });
+
+  test("accepts endpoint-style OpenAddresses Batch URLs", () => {
+    expect(
+      targetPath("/staging", "https://batch.openaddresses.io/api/collections/1/data"),
+    ).toMatch(/\/staging\/raw\/data$/);
+  });
+
+  test("sends configured bearer token only for matching URL", async () => {
+    const oaUrl = "https://batch.openaddresses.io/api/collections/2/data";
+    const publicUrl = "https://download.geonames.org/export/dump/cities500.zip";
+    const seen: Record<string, string | null> = {};
+    stubFetch({
+      [oaUrl]: (init) => {
+        seen.oa = new Headers(init?.headers).get("authorization");
+        return new Response("oa", { status: 200 });
+      },
+      [publicUrl]: (init) => {
+        seen.public = new Headers(init?.headers).get("authorization");
+        return new Response("public", { status: 200 });
+      },
+    });
+
+    await downloadStage({
+      urls: [oaUrl, publicUrl],
+      bearerTokens: { [oaUrl]: "secret-token" },
+    }).run(makeCtx());
+
+    expect(seen.oa).toBe("Bearer secret-token");
+    expect(seen.public).toBeNull();
+  });
+
+  test("does not include bearer token in download errors", async () => {
+    const url = "https://batch.openaddresses.io/api/collections/1/data";
+    stubFetch({
+      [url]: () => new Response("forbidden", { status: 403, statusText: "Forbidden" }),
+    });
+
+    let message = "";
+    try {
+      await downloadStage({
+        urls: [url],
+        bearerTokens: { [url]: "do-not-log-this" },
+      }).run(makeCtx());
+    } catch (err) {
+      message = err instanceof Error ? err.message : String(err);
+    }
+
+    expect(message).toContain("403");
+    expect(message).toContain(url);
+    expect(message).not.toContain("do-not-log-this");
   });
 
   test("skips URLs whose target file already exists", async () => {

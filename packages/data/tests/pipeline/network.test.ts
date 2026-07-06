@@ -13,6 +13,7 @@ let stagingDir: string;
 let outputDir: string;
 let server: ReturnType<typeof Bun.serve>;
 let baseUrl: string;
+let batchZip: string;
 
 const zipFromFiles = async (
   zipPath: string,
@@ -42,6 +43,7 @@ beforeEach(async () => {
   const citiesZip = join(dir, "cities.zip");
   const postalZip = join(dir, "postal.zip");
   const oaZip = join(dir, "oa.zip");
+  batchZip = join(dir, "batch-data.zip");
   await zipFromFiles(citiesZip, [
     {
       name: "cities-test.txt",
@@ -64,6 +66,16 @@ beforeEach(async () => {
       sourcePath: join(FIXTURES, "openaddresses", "us.csv"),
     },
   ]);
+  await zipFromFiles(batchZip, [
+    {
+      name: "us/pa/wyoming-addresses-county.geojson",
+      sourcePath: join(FIXTURES, "openaddresses-batch", "us-pa-addresses.geojson"),
+    },
+    {
+      name: "us/pa/wyoming-parcels-county.geojson",
+      sourcePath: join(FIXTURES, "openaddresses-batch", "us-pa-parcels.geojson"),
+    },
+  ]);
   const countryInfo = join(dir, "countryInfo.txt");
   await copyFile(
     join(FIXTURES, "geonames", "countryInfo-sample.txt"),
@@ -84,6 +96,14 @@ beforeEach(async () => {
   app.get("/oa-test.zip", () => new Response(Bun.file(oaZip).stream(), {
     headers: { "Content-Type": "application/zip" },
   }));
+  app.get("/api/collections/2/data", (c) => {
+    if (c.req.header("authorization") !== "Bearer batch-token") {
+      return new Response("forbidden", { status: 403 });
+    }
+    return new Response(Bun.file(batchZip).stream(), {
+      headers: { "Content-Type": "application/zip" },
+    });
+  });
   server = Bun.serve({ port: 0, fetch: app.fetch });
   baseUrl = `http://localhost:${server.port}`;
 });
@@ -149,5 +169,31 @@ describe("pipeline network integration (all sources mocked locally)", () => {
 
     expect(second.files.places.sha256).toBe(first.files.places.sha256);
     expect(second.files.postal_codes.sha256).toBe(first.files.postal_codes.sha256);
+  });
+
+  test("downloads authenticated Batch collection and emits canonical address artifact", async () => {
+    await buildDataset(
+      {
+        geonamesCitiesUrl: `${baseUrl}/cities-test.zip`,
+        geonamesPostalUrl: `${baseUrl}/postal-test.zip`,
+        geonamesCountryInfoUrl: `${baseUrl}/countryInfo.txt`,
+        openaddressesUrl: `${baseUrl}/api/collections/2/data`,
+        openaddressesToken: "batch-token",
+        citiesFilename: "cities-test.txt",
+        postalFilename: "postal-test.txt",
+      },
+      { stagingDir, outputDir, log: () => {} },
+    );
+
+    expect(await Bun.file(join(outputDir, "addresses-us.csv.zst")).exists()).toBe(true);
+    const manifest = JSON.parse(
+      await readFile(join(outputDir, "latest.json"), "utf8"),
+    ) as Manifest;
+    expect(manifest.sources.openaddresses_url).toBe(
+      `${baseUrl}/api/collections/2/data`,
+    );
+    expect(manifest.coverage).toEqual({ US: "address" });
+    const us = manifest.files.addresses.find((a) => a.country_code === "US");
+    expect(us?.line_count).toBe(3);
   });
 });

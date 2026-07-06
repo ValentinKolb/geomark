@@ -1,0 +1,2 @@
+{"type":"Feature","properties":{"hash":"batch-1","number":"44","street":"Market St","unit":"2B","city":"Tunkhannock","postcode":"18657","region":"PA","district":"Wyoming"},"geometry":{"type":"Point","coordinates":[-75.946,41.538]}}
+{"type":"Feature","properties":{"id":"batch-2","number":10,"street":"Main, North","city":"Meshoppen","postcode":"18630","region":"PA"},"geometry":{"type":"Point","coordinates":[-76.047,41.614]}}

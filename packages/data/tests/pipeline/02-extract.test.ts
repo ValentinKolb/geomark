@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtemp, rm, mkdir, readFile } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, readFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { extractStage, isUnsafePath } from "../../src/pipeline/02-extract";
+import { extractStage, isUnsafePath, isZipFile } from "../../src/pipeline/02-extract";
 import type { StageCtx } from "../../src/pipeline/runner";
 
 let dir: string;
@@ -22,6 +22,12 @@ const makeZip = async (zipPath: string, files: Record<string, string>): Promise<
   const proc = Bun.spawn(["zip", "-q", "-j", zipPath, ...filenames]);
   const exit = await proc.exited;
   if (exit !== 0) throw new Error(`zip failed (${exit}) creating ${zipPath}`);
+  if (
+    !(await Bun.file(zipPath).exists()) &&
+    await Bun.file(`${zipPath}.zip`).exists()
+  ) {
+    await rename(`${zipPath}.zip`, zipPath);
+  }
 };
 
 beforeEach(async () => {
@@ -54,6 +60,23 @@ describe("extractStage", () => {
       "utf8",
     );
     expect(content).toBe("ISO\theader\nDE\tdata\n");
+  });
+
+  test("extracts zip payloads even when the download URL had no .zip suffix", async () => {
+    await makeZip(join(stagingDir, "raw", "data"), {
+      "openaddresses/us.csv": "HASH,LON,LAT\nx,-1,2\n",
+    });
+
+    expect(await isZipFile(join(stagingDir, "raw", "data"))).toBe(true);
+    await extractStage.run(makeCtx());
+
+    const content = await readFile(
+      join(stagingDir, "extracted", "us.csv"),
+      "utf8",
+    ).catch(async () =>
+      readFile(join(stagingDir, "extracted", "openaddresses", "us.csv"), "utf8")
+    );
+    expect(content).toContain("HASH,LON,LAT");
   });
 
   test("extracts multiple zips and concatenates outputs into the same dir", async () => {

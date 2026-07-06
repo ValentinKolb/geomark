@@ -14,6 +14,7 @@ export type PipelineConfig = {
   geonamesPostalUrl: string;
   geonamesCountryInfoUrl: string;
   openaddressesUrl: string;
+  openaddressesToken?: string;
   /** filename inside the cities zip, e.g. "cities500.txt" */
   citiesFilename: string;
   /** filename inside the postal zip, e.g. "allCountries.txt" or "DE.txt" */
@@ -38,7 +39,12 @@ const composeStages = (cfg: PipelineConfig): Stage[] => {
   if (cfg.geonamesAliasesUrl) downloads.push(cfg.geonamesAliasesUrl);
 
   const stages: Stage[] = [
-    downloadStage({ urls: downloads }),
+    downloadStage({
+      urls: downloads,
+      ...(cfg.openaddressesToken
+        ? { bearerTokens: { [cfg.openaddressesUrl]: cfg.openaddressesToken } }
+        : {}),
+    }),
     extractStage,
     placesStage(cfg.citiesFilename),
     addressesStage,

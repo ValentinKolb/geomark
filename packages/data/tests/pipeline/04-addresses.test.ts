@@ -2,7 +2,10 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, rm, mkdir, copyFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addressesStage } from "../../src/pipeline/04-addresses";
+import {
+  addressesStage,
+  detectOpenAddressesSources,
+} from "../../src/pipeline/04-addresses";
 import type { StageCtx } from "../../src/pipeline/runner";
 
 let dir: string;
@@ -71,6 +74,103 @@ describe("addressesStage", () => {
     );
   });
 
+  test("detects and ingests OpenAddresses Batch NDJSON GeoJSON address files", async () => {
+    await rm(join(stagingDir, "extracted", "openaddresses"), { recursive: true });
+    await mkdir(join(stagingDir, "extracted", "us", "pa"), { recursive: true });
+    await Bun.write(
+      join(stagingDir, "extracted", "us", "pa", "wyoming-addresses-county.geojson"),
+      [
+        JSON.stringify({
+          type: "Feature",
+          properties: {
+            hash: "batch-1",
+            number: "44",
+            street: "Market St",
+            unit: "2B",
+            city: "Tunkhannock",
+            postcode: "18657",
+            region: "PA",
+            district: "Wyoming",
+          },
+          geometry: { type: "Point", coordinates: [-75.946, 41.538] },
+        }),
+        JSON.stringify({
+          type: "Feature",
+          properties: {
+            id: "batch-2",
+            number: 10,
+            street: "Main, North",
+            city: "Meshoppen",
+            postcode: "18630",
+            region: "PA",
+          },
+          geometry: { type: "Point", coordinates: [-76.047, 41.614] },
+        }),
+        "",
+      ].join("\n"),
+    );
+    await Bun.write(
+      join(stagingDir, "extracted", "us", "pa", "wyoming-addresses-county.geojson.meta"),
+      "{}",
+    );
+    await Bun.write(
+      join(stagingDir, "extracted", "us", "pa", "wyoming-parcels-county.geojson"),
+      JSON.stringify({
+        type: "Feature",
+        properties: { hash: "parcel-ignored", street: "Parcel Rd" },
+        geometry: { type: "Point", coordinates: [-1, 1] },
+      }),
+    );
+
+    const sources = await detectOpenAddressesSources(
+      join(stagingDir, "extracted"),
+    );
+    expect(sources.map((s) => s.relativePath)).toEqual([
+      "us/pa/wyoming-addresses-county.geojson",
+    ]);
+
+    await addressesStage.run(makeCtx());
+    const us = await readFile(join(stagingDir, "addresses-us.csv"), "utf8");
+    const lines = us.split("\n").filter(Boolean);
+
+    expect(lines[0]).toBe(
+      "gid,latitude,longitude,house_number,street,unit,city,postcode,region,country_code",
+    );
+    expect(lines[1]).toBe(
+      "oa:us:batch-1,41.538,-75.946,44,Market St,2B,Tunkhannock,18657,PA,US",
+    );
+    expect(lines[2]).toBe(
+      'oa:us:batch-2,41.614,-76.047,10,"Main, North",,Meshoppen,18630,PA,US',
+    );
+    expect(us).not.toContain("parcel-ignored");
+  });
+
+  test("groups legacy global CSV layout by country", async () => {
+    await rm(join(stagingDir, "extracted", "openaddresses"), { recursive: true });
+    await mkdir(join(stagingDir, "extracted", "us", "tx"), { recursive: true });
+    await mkdir(join(stagingDir, "extracted", "us", "pa"), { recursive: true });
+    await mkdir(join(stagingDir, "extracted", "summary"), { recursive: true });
+    await Bun.write(
+      join(stagingDir, "extracted", "us", "tx", "yoakum.csv"),
+      "HASH,LON,LAT,NUMBER,STREET,UNIT,CITY,DISTRICT,REGION,POSTCODE\nlegacy1,-102,33,1,Main St,,Plains,,TX,79355\n",
+    );
+    await Bun.write(
+      join(stagingDir, "extracted", "us", "pa", "erie.csv"),
+      "HASH,LON,LAT,NUMBER,STREET,UNIT,CITY,DISTRICT,REGION,POSTCODE\nlegacy2,-80,42,2,Lake Rd,,Erie,,PA,16501\n",
+    );
+    await Bun.write(
+      join(stagingDir, "extracted", "summary", "ignored.csv"),
+      "HASH,LON,LAT,NUMBER,STREET,UNIT,CITY,DISTRICT,REGION,POSTCODE\nbad,0,0,0,Bad,,,,,\n",
+    );
+
+    await addressesStage.run(makeCtx());
+    const us = await readFile(join(stagingDir, "addresses-us.csv"), "utf8");
+
+    expect(us).toContain("oa:us:legacy2,42,-80,2,Lake Rd,,Erie,16501,PA,US");
+    expect(us).toContain("oa:us:legacy1,33,-102,1,Main St,,Plains,79355,TX,US");
+    expect(us).not.toContain("Bad");
+  });
+
   test("uses derived gid even without HASH column value", async () => {
     // Build a synthetic CSV with empty HASH values
     const path = join(
@@ -125,7 +225,7 @@ describe("addressesStage", () => {
   test("throws when the OpenAddresses source directory is missing", async () => {
     await rm(join(stagingDir, "extracted", "openaddresses"), { recursive: true });
     await expect(addressesStage.run(makeCtx())).rejects.toThrow(
-      /missing or unreadable source directory/,
+      /no supported OpenAddresses inputs/,
     );
     expect(await Bun.file(join(stagingDir, "addresses.done")).exists()).toBe(false);
   });
@@ -135,7 +235,7 @@ describe("addressesStage", () => {
     await rm(join(stagingDir, "extracted", "openaddresses", "de.csv"));
     await rm(join(stagingDir, "extracted", "openaddresses", "us.csv"));
     await expect(addressesStage.run(makeCtx())).rejects.toThrow(
-      /contains no CSV files/,
+      /no supported OpenAddresses inputs/,
     );
     expect(await Bun.file(join(stagingDir, "addresses.done")).exists()).toBe(false);
   });

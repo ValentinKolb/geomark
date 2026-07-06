@@ -53,7 +53,7 @@ the API picks them up automatically.
 git clone https://github.com/valentinkolb/geomark
 cd geomark
 
-# Required: point the data loader at an OpenAddresses bundle
+# Required: point the data loader at an OpenAddresses bundle or Batch collection
 echo 'OPENADDRESSES_URL=https://your-host/oa.zip' > .env
 
 docker compose up -d
@@ -101,7 +101,8 @@ The full env surface is documented per package
 | `RATELIMIT_PER_MINUTE` | `60` | Per-IP rate limit. Redis-backed in compose, in-memory fallback otherwise. |
 | `RANDOM_CACHE_SECONDS` | `10` | Shared TTL for `/v1/random`, including the homepage showcase sample. |
 | `REFERENCE_CACHE_SECONDS` | `300` | Shared TTL for stable reference endpoints such as countries and coverage. |
-| `OPENADDRESSES_URL` | (required) | URL of an OpenAddresses bundle ZIP for the data loader. |
+| `OPENADDRESSES_URL` | (required) | URL of an OpenAddresses bundle ZIP or Batch collection endpoint for the data loader. Use `https://batch.openaddresses.io/api/collections/1/data` for the authenticated Global Batch collection. |
+| `OPENADDRESSES_TOKEN` | (none) | Bearer token for authenticated OpenAddresses Batch collection downloads. Keep it in fd0/Kubernetes Secret, not in Git. |
 | `GEONAMES_ALIASES_URL` | (none) | Optional. When set, multilingual aliases are loaded too. |
 | `METRICS_ENABLED` | `true` | Prometheus scrape endpoint + RED middleware. Set `false` to disable. |
 | `METRICS_TOKEN` | (none) | Bearer token for `/metrics`. Falls back to `API_KEY` if unset; both unset → open. |

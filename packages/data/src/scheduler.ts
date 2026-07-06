@@ -74,6 +74,7 @@ const pipelineConfig = (): PipelineConfig => ({
   geonamesPostalUrl: config.geonamesPostalUrl,
   geonamesCountryInfoUrl: config.geonamesCountryInfoUrl,
   openaddressesUrl: config.openaddressesUrl,
+  openaddressesToken: config.openaddressesToken,
   citiesFilename: filenameFromUrl(config.geonamesCitiesUrl),
   postalFilename: filenameFromUrl(config.geonamesPostalUrl),
   ...(config.geonamesAliasesUrl
