@@ -1,0 +1,154 @@
+# Docker-image release. Triggers on scoped per-component tags and on the
+# coordinated `geomark-v*` tag that ships every image at once.
+#
+# Tag conventions:
+#
+#   api-v0.1.0      -> builds geomark-api only
+#   data-v0.1.0     -> builds geomark-data only
+#   web-v0.1.0      -> builds geomark-web only
+#   geomark-v0.1.0  -> builds all three images
+#
+# Image tags published:
+#
+#   ghcr.io/<owner>/geomark-<service>:0.1.0         amd64
+#   ghcr.io/<owner>/geomark-<service>:latest        amd64
+#   ghcr.io/<owner>/geomark-<service>:0.1.0-arm64   arm64
+#   ghcr.io/<owner>/geomark-<service>:latest-arm64  arm64
+
+name: release-docker
+
+on:
+  push:
+    tags:
+      - "api-v*"
+      - "data-v*"
+      - "web-v*"
+      - "geomark-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  geomark-api:
+    if: startsWith(github.ref, 'refs/tags/api-v') || startsWith(github.ref, 'refs/tags/geomark-v')
+    name: geomark-api (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: meta
+        run: |
+          version="${GITHUB_REF_NAME##*-v}"
+          version="${version#v}"
+          owner_lc=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.platform }}" = "amd64" ]; then
+            echo "tags=ghcr.io/${owner_lc}/geomark-api:${version},ghcr.io/${owner_lc}/geomark-api:latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=ghcr.io/${owner_lc}/geomark-api:${version}-arm64,ghcr.io/${owner_lc}/geomark-api:latest-arm64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/api/Dockerfile
+          platforms: linux/${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=geomark-api-${{ matrix.platform }}
+          cache-to: type=gha,scope=geomark-api-${{ matrix.platform }},mode=max
+
+  geomark-data:
+    if: startsWith(github.ref, 'refs/tags/data-v') || startsWith(github.ref, 'refs/tags/geomark-v')
+    name: geomark-data (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: meta
+        run: |
+          version="${GITHUB_REF_NAME##*-v}"
+          version="${version#v}"
+          owner_lc=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.platform }}" = "amd64" ]; then
+            echo "tags=ghcr.io/${owner_lc}/geomark-data:${version},ghcr.io/${owner_lc}/geomark-data:latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=ghcr.io/${owner_lc}/geomark-data:${version}-arm64,ghcr.io/${owner_lc}/geomark-data:latest-arm64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/data/Dockerfile
+          platforms: linux/${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=geomark-data-${{ matrix.platform }}
+          cache-to: type=gha,scope=geomark-data-${{ matrix.platform }},mode=max
+
+  geomark-web:
+    if: startsWith(github.ref, 'refs/tags/web-v') || startsWith(github.ref, 'refs/tags/geomark-v')
+    name: geomark-web (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: meta
+        run: |
+          version="${GITHUB_REF_NAME##*-v}"
+          version="${version#v}"
+          owner_lc=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.platform }}" = "amd64" ]; then
+            echo "tags=ghcr.io/${owner_lc}/geomark-web:${version},ghcr.io/${owner_lc}/geomark-web:latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=ghcr.io/${owner_lc}/geomark-web:${version}-arm64,ghcr.io/${owner_lc}/geomark-web:latest-arm64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/web/Dockerfile
+          platforms: linux/${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=geomark-web-${{ matrix.platform }}
+          cache-to: type=gha,scope=geomark-web-${{ matrix.platform }},mode=max
