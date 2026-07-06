@@ -2,7 +2,12 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, rm, mkdir, readFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { extractStage, isUnsafePath, isZipFile } from "../../src/pipeline/02-extract";
+import {
+  createExtractStage,
+  extractStage,
+  isUnsafePath,
+  isZipFile,
+} from "../../src/pipeline/02-extract";
 import type { StageCtx } from "../../src/pipeline/runner";
 
 let dir: string;
@@ -87,6 +92,33 @@ describe("extractStage", () => {
 
     expect(await readFile(join(stagingDir, "extracted", "a.txt"), "utf8")).toBe("AAA");
     expect(await readFile(join(stagingDir, "extracted", "b.txt"), "utf8")).toBe("BBB");
+  });
+
+  test("renames selected zip entries to avoid same-name upstream collisions", async () => {
+    await makeZip(join(stagingDir, "raw", "geonames-cities.zip"), {
+      "allCountries.txt": "cities\n",
+    });
+    await makeZip(join(stagingDir, "raw", "geonames-postal.zip"), {
+      "allCountries.txt": "postal\n",
+    });
+
+    await createExtractStage({
+      zipEntryRenames: {
+        "geonames-cities.zip": {
+          "allCountries.txt": "geonames-cities.txt",
+        },
+        "geonames-postal.zip": {
+          "allCountries.txt": "geonames-postal.txt",
+        },
+      },
+    }).run(makeCtx());
+
+    expect(
+      await readFile(join(stagingDir, "extracted", "geonames-cities.txt"), "utf8"),
+    ).toBe("cities\n");
+    expect(
+      await readFile(join(stagingDir, "extracted", "geonames-postal.txt"), "utf8"),
+    ).toBe("postal\n");
   });
 
   test("writes a .done sentinel after a successful run", async () => {

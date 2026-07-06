@@ -4,17 +4,33 @@ import type { Stage } from "./runner";
 
 export type DownloadConfig = {
   urls: string[];
+  targetNames?: Record<string, string | undefined>;
   bearerTokens?: Record<string, string | undefined>;
 };
 
-export const targetPath = (stagingDir: string, url: string): string => {
-  const name = basename(new URL(url).pathname);
+const filenameForUrl = (
+  url: string,
+  targetName?: string,
+): string => {
+  const name = targetName ?? basename(new URL(url).pathname);
   if (!name) {
     throw new Error(
       `URL has no filename in its path — refusing to derive download target from ${url}. ` +
         `Use a URL that ends in a filename like /file.zip.`,
     );
   }
+  if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+    throw new Error(`download target name is not a safe filename: ${name}`);
+  }
+  return name;
+};
+
+export const targetPath = (
+  stagingDir: string,
+  url: string,
+  targetName?: string,
+): string => {
+  const name = filenameForUrl(url, targetName);
   return join(stagingDir, "raw", name);
 };
 
@@ -95,7 +111,11 @@ export const downloadStage = (cfg: DownloadConfig): Stage => {
   for (const url of cfg.urls) {
     // Use a dummy stagingDir for the validation; we only care about the
     // basename portion, and `targetPath` throws on URLs without a filename.
-    const name = targetPath("/_validate", url).split("/").pop()!;
+    const name = targetPath(
+      "/_validate",
+      url,
+      cfg.targetNames?.[url],
+    ).split("/").pop()!;
     const previous = seen.get(name);
     if (previous) {
       throw new Error(
@@ -110,7 +130,11 @@ export const downloadStage = (cfg: DownloadConfig): Stage => {
     id: "download",
     isDone: async (ctx) => {
       for (const url of cfg.urls) {
-        if (!(await Bun.file(targetPath(ctx.stagingDir, url)).exists())) {
+        if (
+          !(await Bun.file(
+            targetPath(ctx.stagingDir, url, cfg.targetNames?.[url]),
+          ).exists())
+        ) {
           return false;
         }
       }
@@ -119,7 +143,7 @@ export const downloadStage = (cfg: DownloadConfig): Stage => {
     run: async (ctx) => {
       await mkdir(join(ctx.stagingDir, "raw"), { recursive: true });
       for (const url of cfg.urls) {
-        const dest = targetPath(ctx.stagingDir, url);
+        const dest = targetPath(ctx.stagingDir, url, cfg.targetNames?.[url]);
         if (await Bun.file(dest).exists()) {
           ctx.log(`[download] skip ${url} — already present`);
           continue;

@@ -1,7 +1,7 @@
 import type { Stage, StageCtx } from "./runner";
 import { runStages } from "./runner";
 import { downloadStage } from "./01-download";
-import { extractStage } from "./02-extract";
+import { createExtractStage } from "./02-extract";
 import { placesStage } from "./03-places";
 import { addressesStage } from "./04-addresses";
 import { postalStage } from "./05-postal";
@@ -38,17 +38,35 @@ const composeStages = (cfg: PipelineConfig): Stage[] => {
   ];
   if (cfg.geonamesAliasesUrl) downloads.push(cfg.geonamesAliasesUrl);
 
+  const citiesDownloadName = "geonames-cities.zip";
+  const postalDownloadName = "geonames-postal.zip";
+  const citiesExtractedName = "geonames-cities.txt";
+  const postalExtractedName = "geonames-postal.txt";
+
   const stages: Stage[] = [
     downloadStage({
       urls: downloads,
+      targetNames: {
+        [cfg.geonamesCitiesUrl]: citiesDownloadName,
+        [cfg.geonamesPostalUrl]: postalDownloadName,
+      },
       ...(cfg.openaddressesToken
         ? { bearerTokens: { [cfg.openaddressesUrl]: cfg.openaddressesToken } }
         : {}),
     }),
-    extractStage,
-    placesStage(cfg.citiesFilename),
+    createExtractStage({
+      zipEntryRenames: {
+        [citiesDownloadName]: {
+          [cfg.citiesFilename]: citiesExtractedName,
+        },
+        [postalDownloadName]: {
+          [cfg.postalFilename]: postalExtractedName,
+        },
+      },
+    }),
+    placesStage(citiesExtractedName),
     addressesStage,
-    postalStage(cfg.postalFilename),
+    postalStage(postalExtractedName),
     countriesStage,
   ];
   if (cfg.geonamesAliasesUrl) {

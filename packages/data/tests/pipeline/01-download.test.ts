@@ -67,6 +67,37 @@ describe("downloadStage", () => {
     );
   });
 
+  test("downloads URLs into explicit safe target filenames", async () => {
+    const url1 = "https://download.geonames.org/export/dump/allCountries.zip";
+    const url2 = "https://download.geonames.org/export/zip/allCountries.zip";
+    stubFetch({
+      [url1]: () => new Response("cities", { status: 200 }),
+      [url2]: () => new Response("postal", { status: 200 }),
+    });
+
+    const stage = downloadStage({
+      urls: [url1, url2],
+      targetNames: {
+        [url1]: "geonames-cities.zip",
+        [url2]: "geonames-postal.zip",
+      },
+    });
+    await stage.run(makeCtx());
+
+    expect(
+      await readFile(
+        targetPath(stagingDir, url1, "geonames-cities.zip"),
+        "utf8",
+      ),
+    ).toBe("cities");
+    expect(
+      await readFile(
+        targetPath(stagingDir, url2, "geonames-postal.zip"),
+        "utf8",
+      ),
+    ).toBe("postal");
+  });
+
   test("throws on non-2xx response", async () => {
     const url = "https://example.com/missing.zip";
     stubFetch({
@@ -98,6 +129,30 @@ describe("downloadStage", () => {
     expect(() => downloadStage({ urls: [url1, url2] })).toThrow(
       /both produce filename "data.zip"/,
     );
+  });
+
+  test("rejects target filename collisions even when source URLs differ", () => {
+    const url1 = "https://example.com/a.zip";
+    const url2 = "https://example.com/b.zip";
+    expect(() =>
+      downloadStage({
+        urls: [url1, url2],
+        targetNames: {
+          [url1]: "same.zip",
+          [url2]: "same.zip",
+        },
+      })
+    ).toThrow(/both produce filename "same.zip"/);
+  });
+
+  test("rejects unsafe explicit target filenames", () => {
+    expect(() =>
+      targetPath(
+        "/staging",
+        "https://example.com/data.zip",
+        "../escape.zip",
+      )
+    ).toThrow(/not a safe filename/);
   });
 
   test("rejects truncated downloads when Content-Length doesn't match", async () => {

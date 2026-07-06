@@ -42,6 +42,8 @@ beforeEach(async () => {
   // Build the synthetic source archives the mock server will serve
   const citiesZip = join(dir, "cities.zip");
   const postalZip = join(dir, "postal.zip");
+  const citiesAllCountriesZip = join(dir, "cities-allCountries.zip");
+  const postalAllCountriesZip = join(dir, "postal-allCountries.zip");
   const oaZip = join(dir, "oa.zip");
   batchZip = join(dir, "batch-data.zip");
   await zipFromFiles(citiesZip, [
@@ -53,6 +55,18 @@ beforeEach(async () => {
   await zipFromFiles(postalZip, [
     {
       name: "postal-test.txt",
+      sourcePath: join(FIXTURES, "geonames", "postal-sample.txt"),
+    },
+  ]);
+  await zipFromFiles(citiesAllCountriesZip, [
+    {
+      name: "allCountries.txt",
+      sourcePath: join(FIXTURES, "geonames", "cities-sample.txt"),
+    },
+  ]);
+  await zipFromFiles(postalAllCountriesZip, [
+    {
+      name: "allCountries.txt",
       sourcePath: join(FIXTURES, "geonames", "postal-sample.txt"),
     },
   ]);
@@ -90,6 +104,16 @@ beforeEach(async () => {
   app.get("/postal-test.zip", () => new Response(Bun.file(postalZip).stream(), {
     headers: { "Content-Type": "application/zip" },
   }));
+  app.get("/export/dump/allCountries.zip", () =>
+    new Response(Bun.file(citiesAllCountriesZip).stream(), {
+      headers: { "Content-Type": "application/zip" },
+    })
+  );
+  app.get("/export/zip/allCountries.zip", () =>
+    new Response(Bun.file(postalAllCountriesZip).stream(), {
+      headers: { "Content-Type": "application/zip" },
+    })
+  );
   app.get("/countryInfo.txt", () => new Response(Bun.file(countryInfo).stream(), {
     headers: { "Content-Type": "text/plain" },
   }));
@@ -195,5 +219,27 @@ describe("pipeline network integration (all sources mocked locally)", () => {
     expect(manifest.coverage).toEqual({ US: "address" });
     const us = manifest.files.addresses.find((a) => a.country_code === "US");
     expect(us?.line_count).toBe(3);
+  });
+
+  test("supports GeoNames places and postal URLs that both end in allCountries.zip", async () => {
+    await buildDataset(
+      {
+        geonamesCitiesUrl: `${baseUrl}/export/dump/allCountries.zip`,
+        geonamesPostalUrl: `${baseUrl}/export/zip/allCountries.zip`,
+        geonamesCountryInfoUrl: `${baseUrl}/countryInfo.txt`,
+        openaddressesUrl: `${baseUrl}/oa-test.zip`,
+        citiesFilename: "allCountries.txt",
+        postalFilename: "allCountries.txt",
+      },
+      { stagingDir, outputDir, log: () => {} },
+    );
+
+    const manifest = JSON.parse(
+      await readFile(join(outputDir, "latest.json"), "utf8"),
+    ) as Manifest;
+    expect(manifest.files.places.line_count).toBe(6);
+    expect(manifest.files.postal_codes.line_count).toBe(6);
+    expect(await Bun.file(join(outputDir, "places.csv.zst")).exists()).toBe(true);
+    expect(await Bun.file(join(outputDir, "postal_codes.csv.zst")).exists()).toBe(true);
   });
 });
