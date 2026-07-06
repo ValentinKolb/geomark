@@ -20,6 +20,8 @@ COPY packages/data/package.json packages/data/
 RUN bun install --frozen-lockfile --production
 
 FROM base AS release
+ENV NODE_ENV=production
+
 # Bun hoists workspace deps into root node_modules — copy that one tree.
 COPY --from=install /app/node_modules ./node_modules
 COPY packages/shared ./packages/shared

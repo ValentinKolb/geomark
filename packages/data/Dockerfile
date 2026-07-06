@@ -18,6 +18,8 @@ COPY packages/data/package.json packages/data/
 RUN bun install --frozen-lockfile --production
 
 FROM base AS release
+ENV NODE_ENV=production
+
 # Bun hoists all workspace deps into the root node_modules in production
 # install mode, so we only need to copy that one tree (no per-workspace
 # node_modules are created in Docker even though they exist locally).

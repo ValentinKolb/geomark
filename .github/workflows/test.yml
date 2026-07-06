@@ -41,6 +41,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: assert production Dockerfiles set NODE_ENV
+        run: |
+          for file in packages/api/Dockerfile packages/data/Dockerfile packages/web/Dockerfile; do
+            if ! awk '
+              /^FROM .* AS release$/ { in_release = 1; next }
+              /^FROM / && in_release { in_release = 0 }
+              in_release && /^ENV NODE_ENV=production$/ { found = 1 }
+              END { exit found ? 0 : 1 }
+            ' "$file"; then
+              echo "::error file=$file::release stage must set ENV NODE_ENV=production"
+              exit 1
+            fi
+          done
+
       - name: validate development compose
         run: |
           OPENADDRESSES_URL=https://example.com/openaddresses.zip \
@@ -48,7 +62,7 @@ jobs:
 
       - name: validate production compose
         run: |
-          GEOMARK_VERSION=0.1.1 \
+          GEOMARK_VERSION=0.1.4 \
           DOMAIN=geomark.example \
           POSTGRES_PASSWORD=ci-secret \
           OPENADDRESSES_URL=https://example.com/openaddresses.zip \
@@ -56,7 +70,7 @@ jobs:
 
       - name: assert production compose requires postgres password
         run: |
-          if GEOMARK_VERSION=0.1.1 \
+          if GEOMARK_VERSION=0.1.4 \
             DOMAIN=geomark.example \
             OPENADDRESSES_URL=https://example.com/openaddresses.zip \
             docker compose -f compose.prod.yml config >/tmp/geomark-compose-prod-negative.yml 2>/tmp/geomark-compose-prod-negative.err; then
@@ -78,7 +92,7 @@ jobs:
 
       - name: assert production compose requires domain
         run: |
-          if GEOMARK_VERSION=0.1.1 \
+          if GEOMARK_VERSION=0.1.4 \
             POSTGRES_PASSWORD=ci-secret \
             OPENADDRESSES_URL=https://example.com/openaddresses.zip \
             docker compose -f compose.prod.yml config >/tmp/geomark-compose-prod-negative-domain.yml 2>/tmp/geomark-compose-prod-negative-domain.err; then

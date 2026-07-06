@@ -18,7 +18,7 @@
 #     TLS-ALPN-01 challenges, only :443 needs to be open on Traefik.
 #
 # Required env:
-#   GEOMARK_VERSION         Published image tag, for example "0.1.3".
+#   GEOMARK_VERSION         Published image tag, for example "0.1.4".
 #   DOMAIN                  Public apex domain, for example "geomark.dev".
 #   POSTGRES_PASSWORD       Strong database password. No production default.
 #   OPENADDRESSES_URL       URL of an OpenAddresses ZIP or Batch collection.
@@ -97,7 +97,7 @@ services:
       start_period: 5s
 
   data:
-    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-data:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.3}
+    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-data:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.4}
     pull_policy: always
     restart: unless-stopped
     init: true
@@ -117,7 +117,7 @@ services:
       - traefik.http.services.geomark-data.loadbalancer.server.port=3000
 
   api:
-    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-api:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.3}
+    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-api:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.4}
     pull_policy: always
     restart: unless-stopped
     init: true
@@ -156,7 +156,7 @@ services:
       - traefik.http.services.geomark-api.loadbalancer.server.port=3000
 
   web:
-    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-web:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.3}
+    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-web:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.4}
     pull_policy: always
     restart: unless-stopped
     init: true
