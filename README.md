@@ -44,10 +44,10 @@ curl https://geomark.dev/v1/search -G --data-urlencode 'q=berlin'
 
 ## Self-host
 
-Four containers behind one compose file: PostgreSQL + PostGIS (`db`), the
-data loader (`data`), the API (`api`), and the geomark.dev landing page
-(`web`). The loader downloads upstream sources on first start and the API
-picks them up automatically.
+Five containers behind one compose file: PostgreSQL + PostGIS (`db`), Redis
+(`redis`), the data loader (`data`), the API (`api`), and the geomark.dev
+landing page (`web`). The loader downloads upstream sources on first start and
+the API picks them up automatically.
 
 ```sh
 git clone https://github.com/valentinkolb/geomark
@@ -68,10 +68,22 @@ curl http://localhost:4000/ready
 # {"status":"ready",   ...}  → ready to query
 ```
 
-For a public Traefik deployment, use `compose.prod.yml`. It requires
-`POSTGRES_PASSWORD`, keeps metrics disabled by default, and routes
-`geomark.dev/v1/*` directly to the API while the website remains on
-`geomark.dev`.
+For a public Traefik deployment, use `compose.prod.yml`. It pulls published
+GHCR images instead of building local source, requires an explicit image tag
+(`GEOMARK_VERSION`), and keeps durable state in the `geomark-db` and
+`geomark-data` Docker volumes.
+
+```sh
+cp .env.prod.example .env.prod
+# edit GEOMARK_VERSION, DOMAIN, POSTGRES_PASSWORD, OPENADDRESSES_URL
+
+docker compose --env-file .env.prod -f compose.prod.yml pull
+docker compose --env-file .env.prod -f compose.prod.yml up -d
+```
+
+Production compose expects an external Traefik network. It routes the apex
+site to `web`, `api.<DOMAIN>` plus apex `/v1/*` to `api`, and
+`data.<DOMAIN>` to `data`.
 
 ### Configuration
 
@@ -81,6 +93,9 @@ The full env surface is documented per package
 
 | Variable | Default | Description |
 |---|---|---|
+| `GEOMARK_VERSION` | (required in prod) | Published GHCR tag for `geomark-api`, `geomark-data`, and `geomark-web`. |
+| `DOMAIN` | (required in prod) | Public apex domain used by Traefik labels and public data links. |
+| `POSTGRES_PASSWORD` | (required in prod) | Password for the bundled Postgres service. |
 | `API_KEY` | (none) | If set, bearer-auth is enforced on all `/v1/*` routes. |
 | `REDIS_URL` | `redis://redis:6379` in compose | Native Bun Redis backend for distributed rate limiting and shared short-lived API caches. |
 | `RATELIMIT_PER_MINUTE` | `60` | Per-IP rate limit. Redis-backed in compose, in-memory fallback otherwise. |

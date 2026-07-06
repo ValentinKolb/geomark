@@ -1,5 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Geomark production compose — three Traefik-routed subdomains, one stack.
+# Geomark production compose — published images, Traefik, and durable state.
+#
+# This file is for operators deploying a release. It pulls GHCR images and does
+# not build local source code. For local development, use compose.yml.
 #
 # Routing layout:
 #   geomark.dev          → web      (catch-all, marketing + docs pages)
@@ -15,12 +18,13 @@
 #     TLS-ALPN-01 challenges, only :443 needs to be open on Traefik.
 #
 # Required env:
-#   OPENADDRESSES_URL       URL of an OpenAddresses bundle ZIP. Hard fail
-#                           if unset (no sensible default).
+#   GEOMARK_VERSION         Published image tag, for example "0.1.1".
+#   DOMAIN                  Public apex domain, for example "geomark.dev".
+#   POSTGRES_PASSWORD       Strong database password. No production default.
+#   OPENADDRESSES_URL       URL of an OpenAddresses bundle ZIP.
 #
 # Optional env (sensible defaults inline; override via shell-export):
-#   DOMAIN                  default "geomark.dev"
-#   POSTGRES_PASSWORD       required; no safe production default
+#   GEOMARK_IMAGE_REGISTRY  default "ghcr.io/valentinkolb"
 #   API_KEY                 gate the public API (default: open)
 #   METRICS_ENABLED         default "false" in production compose
 #   METRICS_TOKEN           gate /metrics on both api + data when enabled
@@ -28,7 +32,7 @@
 #   TRAEFIK_CERT_RESOLVER   name of the Traefik acme cert resolver (default "le")
 #   GEONAMES_*_URL          override the GeoNames source defaults
 #
-# Run:   docker compose -f compose.prod.yml up -d
+# Run:   docker compose --env-file .env.prod -f compose.prod.yml up -d
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ─── Shared env blocks (YAML merge keys) ─────────────────────────────────────
@@ -64,6 +68,7 @@ networks:
 services:
   db:
     image: timescale/timescaledb-ha:pg17-all
+    restart: unless-stopped
     environment:
       <<: *postgres-creds
     shm_size: 512m
@@ -79,6 +84,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     networks: [internal]
     healthcheck:
@@ -89,9 +95,10 @@ services:
       start_period: 5s
 
   data:
-    build:
-      context: .
-      dockerfile: packages/data/Dockerfile
+    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-data:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.1}
+    pull_policy: always
+    restart: unless-stopped
+    init: true
     environment:
       <<: [*data-sources, *metrics-config]
       OUTPUT_DIR: /data
@@ -102,18 +109,19 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
-      - traefik.http.routers.geomark-data.rule=Host(`data.${DOMAIN:-geomark.dev}`)
+      - traefik.http.routers.geomark-data.rule=Host(`data.${DOMAIN:?Set DOMAIN to the public apex domain, for example geomark.dev}`)
       - traefik.http.routers.geomark-data.entrypoints=websecure
       - traefik.http.routers.geomark-data.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
       - traefik.http.services.geomark-data.loadbalancer.server.port=3000
 
   api:
-    build:
-      context: .
-      dockerfile: packages/api/Dockerfile
+    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-api:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.1}
+    pull_policy: always
+    restart: unless-stopped
+    init: true
     environment:
       <<: *metrics-config
-      DATABASE_URL: postgres://geomark:${POSTGRES_PASSWORD:-CHANGE-ME}@db:5432/geomark
+      DATABASE_URL: postgres://geomark:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD to a strong value}@db:5432/geomark
       DATA_URL: http://data:3000/v1
       REDIS_URL: redis://redis:6379
       API_KEY: ${API_KEY:-}
@@ -129,39 +137,41 @@ services:
       redis:
         condition: service_healthy
       data:
-        condition: service_started
+        condition: service_healthy
     labels:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
-      - traefik.http.routers.geomark-api.rule=Host(`api.${DOMAIN:-geomark.dev}`)
+      - traefik.http.routers.geomark-api.rule=Host(`api.${DOMAIN:?Set DOMAIN to the public apex domain, for example geomark.dev}`)
       - traefik.http.routers.geomark-api.entrypoints=websecure
       - traefik.http.routers.geomark-api.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
       # Keep the public docs/examples and browser islands fast: apex /v1/*
       # is routed straight to API, while the web container keeps a fallback
       # proxy for local compose and non-Traefik deployments.
-      - traefik.http.routers.geomark-api-apex.rule=Host(`${DOMAIN:-geomark.dev}`) && PathPrefix(`/v1`)
+      - traefik.http.routers.geomark-api-apex.rule=Host(`${DOMAIN:?Set DOMAIN to the public apex domain, for example geomark.dev}`) && PathPrefix(`/v1`)
       - traefik.http.routers.geomark-api-apex.entrypoints=websecure
       - traefik.http.routers.geomark-api-apex.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
       - traefik.http.routers.geomark-api-apex.priority=100
       - traefik.http.services.geomark-api.loadbalancer.server.port=3000
 
   web:
-    build:
-      context: .
-      dockerfile: packages/web/Dockerfile
+    image: ${GEOMARK_IMAGE_REGISTRY:-ghcr.io/valentinkolb}/geomark-web:${GEOMARK_VERSION:?Set GEOMARK_VERSION to a published tag, for example 0.1.1}
+    pull_policy: always
+    restart: unless-stopped
+    init: true
     environment:
       # Server-side status/manifest fetches and the web fallback proxy use
       # internal service DNS. Public copy-paste URLs still point at Traefik.
       API_URL: ${API_URL:-http://api:3000}
       DATA_URL: ${DATA_URL:-http://data:3000/v1}
-      DATA_PUBLIC_URL: ${DATA_PUBLIC_URL:-https://data.${DOMAIN:-geomark.dev}/v1}
+      DATA_PUBLIC_URL: ${DATA_PUBLIC_URL:-https://data.${DOMAIN:?Set DOMAIN to the public apex domain, for example geomark.dev}/v1}
     networks: [internal, traefik]
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     labels:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
-      - traefik.http.routers.geomark-web.rule=Host(`${DOMAIN:-geomark.dev}`)
+      - traefik.http.routers.geomark-web.rule=Host(`${DOMAIN:?Set DOMAIN to the public apex domain, for example geomark.dev}`)
       - traefik.http.routers.geomark-web.entrypoints=websecure
       - traefik.http.routers.geomark-web.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
       - traefik.http.services.geomark-web.loadbalancer.server.port=3000

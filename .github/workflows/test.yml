@@ -48,18 +48,44 @@ jobs:
 
       - name: validate production compose
         run: |
+          GEOMARK_VERSION=0.1.1 \
+          DOMAIN=geomark.example \
           POSTGRES_PASSWORD=ci-secret \
           OPENADDRESSES_URL=https://example.com/openaddresses.zip \
             docker compose -f compose.prod.yml config >/tmp/geomark-compose-prod.yml
 
       - name: assert production compose requires postgres password
         run: |
-          if OPENADDRESSES_URL=https://example.com/openaddresses.zip \
+          if GEOMARK_VERSION=0.1.1 \
+            DOMAIN=geomark.example \
+            OPENADDRESSES_URL=https://example.com/openaddresses.zip \
             docker compose -f compose.prod.yml config >/tmp/geomark-compose-prod-negative.yml 2>/tmp/geomark-compose-prod-negative.err; then
             echo "::error::compose.prod.yml accepted a missing POSTGRES_PASSWORD"
             exit 1
           fi
           grep -q "POSTGRES_PASSWORD is missing" /tmp/geomark-compose-prod-negative.err
+
+      - name: assert production compose requires image version
+        run: |
+          if DOMAIN=geomark.example \
+            POSTGRES_PASSWORD=ci-secret \
+            OPENADDRESSES_URL=https://example.com/openaddresses.zip \
+            docker compose -f compose.prod.yml config >/tmp/geomark-compose-prod-negative-version.yml 2>/tmp/geomark-compose-prod-negative-version.err; then
+            echo "::error::compose.prod.yml accepted a missing GEOMARK_VERSION"
+            exit 1
+          fi
+          grep -q "GEOMARK_VERSION is missing" /tmp/geomark-compose-prod-negative-version.err
+
+      - name: assert production compose requires domain
+        run: |
+          if GEOMARK_VERSION=0.1.1 \
+            POSTGRES_PASSWORD=ci-secret \
+            OPENADDRESSES_URL=https://example.com/openaddresses.zip \
+            docker compose -f compose.prod.yml config >/tmp/geomark-compose-prod-negative-domain.yml 2>/tmp/geomark-compose-prod-negative-domain.err; then
+            echo "::error::compose.prod.yml accepted a missing DOMAIN"
+            exit 1
+          fi
+          grep -q "DOMAIN is missing" /tmp/geomark-compose-prod-negative-domain.err
 
   docker-build:
     runs-on: ubuntu-latest
