@@ -13,6 +13,7 @@
     "@geomark/shared": "workspace:*",
     "@scalar/hono-api-reference": "^0.9.37",
     "@scalar/openapi-to-markdown": "^0.3.31",
+    "@valentinkolb/sync": "^5.3.0",
     "hono": "^4.11.7",
     "hono-openapi": "^1.2.0",
     "prom-client": "^15.1.3",

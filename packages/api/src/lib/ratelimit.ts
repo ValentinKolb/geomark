@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { getConnInfo } from "hono/bun";
-import type { RedisClient } from "bun";
-import { getRedis } from "./redis";
+import { ratelimit as createSyncRateLimit } from "@valentinkolb/sync";
+import { redisConfigured } from "./redis";
 import { recordRateLimitCheck, recordRedisError } from "../metrics/runtime";
 
 /**
@@ -33,19 +33,6 @@ const buckets = new Map<string, Bucket>();
 let sweeper: ReturnType<typeof setInterval> | null = null;
 let redisDisabledUntil = 0;
 let lastRedisWarning = 0;
-
-const REDIS_SCRIPT = `
-redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
-redis.call('ZADD', KEYS[1], ARGV[2], ARGV[3])
-redis.call('PEXPIRE', KEYS[1], ARGV[4])
-local count = redis.call('ZCARD', KEYS[1])
-local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
-local reset = tonumber(ARGV[4])
-if oldest[2] then
-  reset = math.max(0, (tonumber(oldest[2]) + tonumber(ARGV[4])) - tonumber(ARGV[2]))
-end
-return { count, math.max(0, tonumber(ARGV[5]) - count), reset }
-`;
 
 const ensureSweeper = (): void => {
   if (sweeper !== null) return;
@@ -95,32 +82,33 @@ const memoryCheck = (key: string, limit: number, now: number): LimitState => {
   };
 };
 
-const redisCheck = async (
-  r: RedisClient,
+const syncLimiters = new Map<
+  number,
+  ReturnType<typeof createSyncRateLimit>
+>();
+
+const getSyncLimiter = (limit: number): ReturnType<typeof createSyncRateLimit> => {
+  const existing = syncLimiters.get(limit);
+  if (existing) return existing;
+  const limiter = createSyncRateLimit({
+    id: "api",
+    limit,
+    windowSecs: WINDOW_MS / 1000,
+    prefix: "geomark:ratelimit",
+  });
+  syncLimiters.set(limit, limiter);
+  return limiter;
+};
+
+const syncCheck = async (
   key: string,
   limit: number,
-  now: number,
 ): Promise<LimitState> => {
-  const redisKey = `geomark:rl:v1:${encodeURIComponent(key)}`;
-  const member = `${now}:${crypto.randomUUID()}`;
-  const raw = await r.send("EVAL", [
-    REDIS_SCRIPT,
-    "1",
-    redisKey,
-    String(now - WINDOW_MS),
-    String(now),
-    member,
-    String(WINDOW_MS),
-    String(limit),
-  ]);
-  if (!Array.isArray(raw) || raw.length < 3) {
-    throw new Error(`unexpected Redis rate-limit result: ${JSON.stringify(raw)}`);
-  }
-  const count = Number(raw[0]);
+  const result = await getSyncLimiter(limit).check(key);
   return {
-    count,
-    remaining: Number(raw[1]),
-    resetMs: Number(raw[2]),
+    count: result.limited ? limit + 1 : limit - result.remaining,
+    remaining: result.remaining,
+    resetMs: result.resetIn,
   };
 };
 
@@ -144,12 +132,11 @@ export const rateLimit = (opts: RateLimitOptions): MiddlewareHandler => {
     const key = clientKey(c, opts.trustedProxyHops);
     const now = Date.now();
     let state: LimitState;
-    const r = getRedis();
     let backend: "redis" | "memory" = "memory";
     let fallback = false;
-    if (r && now >= redisDisabledUntil) {
+    if (redisConfigured() && now >= redisDisabledUntil) {
       try {
-        state = await redisCheck(r, key, opts.limit, now);
+        state = await syncCheck(key, opts.limit);
         backend = "redis";
       } catch (err) {
         redisDisabledUntil = now + REDIS_BACKOFF_MS;
@@ -189,4 +176,5 @@ export const rateLimit = (opts: RateLimitOptions): MiddlewareHandler => {
 /** Test-only: reset all buckets. */
 export const _resetRateLimitForTests = (): void => {
   buckets.clear();
+  syncLimiters.clear();
 };
